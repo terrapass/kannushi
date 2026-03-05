@@ -1,2 +1,4 @@
+from .render_templates import main as render_templates_main
+
 def main() -> None:
-    print("Hello from kannushi!")
+    render_templates_main()

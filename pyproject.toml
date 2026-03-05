@@ -7,7 +7,11 @@ authors = [
     { name = "Taras Denysenko", email = "terrapass93@gmail.com" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "jinja2>=3.1.6",
+    "jinja2-error>=0.1.0",
+    "pyyaml>=6.0.3",
+]
 
 [project.scripts]
 kannushi = "kannushi:main"
