@@ -1,7 +1,7 @@
 [project]
 name = "kannushi"
 version = "0.1.0"
-description = "Add your description here"
+description = "A batch renderer for Jinja templates"
 readme = "README.md"
 authors = [
     { name = "Taras Denysenko", email = "terrapass93@gmail.com" }
