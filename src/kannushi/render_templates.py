@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# Originally jinja_dir_render.py made for 'Custom Title Form of Address'
-# https://gist.github.com/terrapass/1afa0c22dee29542e3c3c49a45a9a049
-# Adapted for templating needs of 'Godherja: The Dying World' and 'A Game of Thrones'
 import argparse
 import traceback
 import importlib
