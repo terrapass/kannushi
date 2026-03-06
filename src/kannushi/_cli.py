@@ -11,6 +11,7 @@ from io import TextIOWrapper
 from . import *
 from .timing import StageRuntimeReporter
 from ._vars.loading import load_vars_from_yaml_files
+from ._vars.post_processing import post_process_vars
 from ._logging import *
 
 #
