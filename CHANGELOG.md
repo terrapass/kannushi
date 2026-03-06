@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+## [0.1.1][0.1.1] - 2026-03-06
+
+### Fixed
+
+- Fixed the issue where color output would be printed in spite of the `--no-color` argument being provided.
+
+### Added
+
+- [CHANGELOG.md](https://github.com/terrapass/kannushi/blob/master/CHANGELOG.md) URL to package metadata.
+
 ## [0.1.0][0.1.0] - 2026-03-06
 
 Initial public release of **kannushi** - a command line utility for batch rendering of [Jinja](https://jinja.palletsprojects.com/en/stable/) templates.
@@ -26,5 +36,6 @@ Initial public release of **kannushi** - a command line utility for batch render
 - [`{% do %}` expression statements](https://jinja.palletsprojects.com/en/stable/extensions/#expression-statement) are supported in templates by means of the standard `jinja2.ext.do` Jinja2 extension.
 - [`jinja2-error`](https://pypi.org/project/jinja2-error/) extension is integrated to allow for use of the `{% error %}` Jinja tag to raise errors from template code.
 
-[unreleased]: https://github.com/terrapass/kannushi/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/terrapass/kannushi/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/terrapass/kannushi/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/terrapass/kannushi/releases/tag/v0.1.0
