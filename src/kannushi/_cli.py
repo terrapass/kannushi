@@ -83,9 +83,8 @@ def main():
     parser = _make_cli_parser()
     args   = parser.parse_args()
 
-    global _is_color_disabled
-    _is_color_disabled = args.is_color_disabled
-    if not _is_color_disabled and sys_platform == 'win32':
+    set_color_disabled(args.is_color_disabled)
+    if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
 
     config = RenderConfig(args)

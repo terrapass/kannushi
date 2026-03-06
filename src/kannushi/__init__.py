@@ -428,3 +428,11 @@ def print_error(*args, **kwargs):
 
 def print_in_color(color: AnsiColor, *args, **kwargs):
     print(f"{'' if _is_color_disabled else color.value}{args[0]}{'' if _is_color_disabled else AnsiColor.DEFAULT.value}", *(args[1:]), **kwargs)
+
+#
+# Interface
+#
+
+def set_color_disabled(is_color_disabled: bool):
+    global _is_color_disabled
+    _is_color_disabled = is_color_disabled
