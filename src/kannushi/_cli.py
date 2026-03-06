@@ -5,13 +5,12 @@ import signal
 from pathlib import Path
 from os import system
 from enum import Enum
-from sys import platform as sys_platform
+from sys import stdout, platform as sys_platform
 from io import TextIOWrapper
 
-from . import *
+from . import TemplateVariables, RenderConfig, RenderDirResult, load_vars_from_yaml_files, post_process_vars, render_dir
+from .exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
 from .timing import StageRuntimeReporter
-from ._vars.loading import load_vars_from_yaml_files
-from ._vars.post_processing import post_process_vars
 from ._logging import *
 
 #
@@ -129,7 +128,7 @@ def main():
         except KeyboardInterrupt:
             print_warning('warning: Interrupted by the user')
             exit(_MainExitCode.INTERRUPTED)
-        except exceptions.ModuleExecutionException as e:
+        except ModuleExecutionException as e:
             print_error('\n'.join(traceback.format_exception(e.original_exception)))
             print_error(f"error: Failed to load module {args.vars_processor_module_locator} due to the exception above")
             exit(_MainExitCode.VARS_PROCESSING_FAILED)
@@ -137,7 +136,7 @@ def main():
             print_error(f"error: {e}")
             print(f'hint: make sure a valid Python module name or .py file path is given via {_VARS_PROCESSOR_MODULE_ARG}')
             exit(_MainExitCode.VARS_PROCESSING_FAILED)
-        except exceptions.InvalidVarsProcessorInterface as e:
+        except InvalidVarsProcessorInterface as e:
             print_error(f"error: {e}")
             exit(_MainExitCode.VARS_PROCESSING_FAILED)
         except BaseException as e:
