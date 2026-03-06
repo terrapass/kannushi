@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+### Added
+
+- MIT license in [`LICENSE`](https://github.com/terrapass/kannushi/blob/master/LICENSE).
+
 ### Changed
 
 - Dependency version requirements: Jinja2 to `>=3.0.0,<4.0.0`. PyYAML to `>=6.0.0,<7.0.0`, jinja2-error to `~=0.1.0`.
