@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/terrapass/kannushi"
+#Repository = "https://github.com/terrapass/kannushi"
 Changelog = "https://github.com/terrapass/kannushi/blob/master/CHANGELOG.md"
 
 [project.scripts]
