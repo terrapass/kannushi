@@ -16,7 +16,7 @@ from . import *
 
 _CLI_DESCRIPTION = """
 Renders all Jinja templates in a directory into files in another directory, preserving the folder structure.
-Templates must use UTF-8 (with or without BOM), rendered files will preserve their source templates' BOM or lack thereof.
+Templates must use UTF-8 (with or without BOM), rendered files will reflect their source templates' BOM or lack thereof.
 """
 
 _VARS_PROCESSOR_MODULE_ARG   = '--vars-processor'
@@ -31,7 +31,7 @@ _SIGNAL_EXIT_CODE_OFFSET = 128
 #
 
 def _make_cli_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=_CLI_DESCRIPTION, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=_CLI_DESCRIPTION)
 
     parser.add_argument('source_path', metavar='SOURCE_PATH', type=Path, help='root directory containing Jinja templates')
     parser.add_argument('target_path', metavar='TARGET_PATH', type=Path, help='target root directory for rendered files')
