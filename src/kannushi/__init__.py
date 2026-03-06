@@ -21,6 +21,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from jinja2_error import ErrorExtension
 
 from . import exceptions
+from ._logging import *
 
 #
 # Constants
@@ -98,12 +99,6 @@ class RenderTemplateResult:
     target_file_path:    Path
     render_time_seconds: float
 
-class AnsiColor(str, Enum):
-    DEFAULT = '\033[0m'
-    RED     = '\033[31m'
-    GREEN   = '\033[32m'
-    YELLOW  = '\033[33m'
-
 class Stage(str, Enum):
     VARS_LOADING     = "YAML variables loading"
     VARS_PROCESSING  = "Variables post-processing"
@@ -175,9 +170,8 @@ class PerformanceLogger:
 # Globals
 #
 
-_jinja_env         = None
-_is_color_disabled = False
-_vars              = None
+_jinja_env = None
+_vars      = None
 
 #
 # Service
@@ -350,15 +344,15 @@ def init_render_template_process(source_path: Path, vars: TemplateVariables, is_
     # Prevent Ctrl-C from raising KeyboardInterrupt in child processes
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    global _jinja_env, _is_color_disabled, _vars
+    global _jinja_env, _vars
     _jinja_env = Environment(
         loader=FileSystemLoader(source_path, encoding=SOURCE_ENCODING),
         extensions=['jinja2.ext.do', ErrorExtension],
         autoescape=False,
         undefined=StrictUndefined
     )
-    _is_color_disabled = is_color_disabled
-    _vars              = vars
+    _vars = vars
+    set_color_disabled(is_color_disabled)
 
 def render_template_job(config: RenderConfig, template_path: Path) -> RenderTemplateResult:
     """This function is the entry point for individual template rendering jobs run in parallel"""
@@ -399,23 +393,3 @@ def replace_backslashes(path_str: str | Path) -> str:
 def template_name_to_target_file_path(target_dir_path: Path, template_name: str) -> Path:
     assert template_name.endswith(TEMPLATE_EXTENSION)
     return target_dir_path / template_name[:-len(TEMPLATE_EXTENSION)]
-
-def print_success(*args, **kwargs):
-    print_in_color(AnsiColor.GREEN, *args, **kwargs)
-
-def print_warning(*args, **kwargs):
-    print_in_color(AnsiColor.YELLOW, *args, **dict({'file' : stderr}, **kwargs))
-
-def print_error(*args, **kwargs):
-    print_in_color(AnsiColor.RED, *args, **dict({'file' : stderr}, **kwargs))
-
-def print_in_color(color: AnsiColor, *args, **kwargs):
-    print(f"{'' if _is_color_disabled else color.value}{args[0]}{'' if _is_color_disabled else AnsiColor.DEFAULT.value}", *(args[1:]), **kwargs)
-
-#
-# Interface
-#
-
-def set_color_disabled(is_color_disabled: bool):
-    global _is_color_disabled
-    _is_color_disabled = is_color_disabled

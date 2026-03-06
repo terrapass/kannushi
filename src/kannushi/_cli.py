@@ -9,6 +9,7 @@ from sys import platform as sys_platform
 from io import TextIOWrapper
 
 from . import *
+from ._logging import *
 
 #
 # Constants
