@@ -10,6 +10,7 @@ from io import TextIOWrapper
 
 from . import *
 from .timing import StageRuntimeReporter
+from ._vars.loading import load_vars_from_yaml_files
 from ._logging import *
 
 #

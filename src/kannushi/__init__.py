@@ -6,7 +6,7 @@ from pathlib import Path
 from os import path, cpu_count
 from dataclasses import dataclass, field
 from types import ModuleType
-from typing import Any, Callable, cast
+from typing import Callable, cast
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
 from functools import cached_property, partial
@@ -14,20 +14,18 @@ from itertools import repeat
 from sys import stdout, stderr, modules as sys_modules, path as sys_path
 from timeit import default_timer
 
-import glob
-import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from jinja2_error import ErrorExtension
 
 from . import exceptions
 from .timing import Stage, ProgressListener, NullProgressListener
+from ._vars import TemplateVariables
+from ._vars.loading import inject_service_var
 from ._logging import *
 
 #
 # Constants
 #
-
-VARS_ENCODING = 'utf-8' # This correctly handles UTF-8 with or without BOM for YAML files with variables
 
 SOURCE_ENCODING = 'utf-8' # Treating both source and rendered content as regular UTF-8 handles BOM correctly.
 TARGET_ENCODING = 'utf-8' #
@@ -42,13 +40,6 @@ ASYNC_POLLING_INTERVAL_SECONDS = 0.5 # Primarily determines the reaction time to
 #
 # Types
 #
-
-# A convenience wrapper around dict, allowing to acess values
-# both by key via [] or as regular attributes via dot notation.
-class TemplateVariables(dict):
-     def __init__(self, vars: dict = {}):
-         super().__init__(vars)
-         self.__dict__ = self
 
 @dataclass
 class RenderConfig:
@@ -109,61 +100,6 @@ _vars      = None
 #
 # Service
 #
-
-def load_vars_from_yaml_files(vars_files_glob: str, jobs_count: int, progress_listener: ProgressListener = NullProgressListener()) -> TemplateVariables:
-    var_files_paths = glob.glob(vars_files_glob, recursive=True)
-    var_files_count = len(var_files_paths)
-
-    if var_files_count <= 0:
-        print_warning(f"warning: {vars_files_glob} didn't match any files; skipping vars loading")
-        return TemplateVariables()
-
-    adjusted_jobs_count = min(var_files_count, jobs_count)
-    print(f"Loading template variables from {len(var_files_paths)} files matching {vars_files_glob} in {adjusted_jobs_count} parallel jobs...")
-
-    yaml_loader_class  = select_yaml_loader_class()
-    progress_listener.on_stage_started(Stage.VARS_LOADING)
-    try:
-        with Pool(adjusted_jobs_count, signal.signal, (signal.SIGINT, signal.SIG_IGN)) as process_pool:
-            vars_parts = process_pool.starmap(load_dict_from_yaml_file, zip(var_files_paths, repeat(yaml_loader_class)))
-
-        vars = TemplateVariables()
-        for vars_part in vars_parts:
-            merge_in_vars(vars, vars_part)
-
-        progress_listener.on_stage_ended(Stage.VARS_LOADING, 0, False)
-
-        return vars
-    except BaseException as e:
-        is_keyboard_interrupt = isinstance(e, KeyboardInterrupt)
-        progress_listener.on_stage_ended(Stage.VARS_LOADING, 0 if is_keyboard_interrupt else 1, is_keyboard_interrupt)
-        raise
-
-def select_yaml_loader_class() -> type:
-    try:
-        # Use the faster loader from LibYAML bindings
-        return yaml.CLoader
-    except AttributeError:
-        print_warning('warning: Using the slower Python-based YAML loader')
-        print('hint: install LibYAML bindings to switch to the faster C-based loader')
-        return yaml.Loader
-
-def load_dict_from_yaml_file(yaml_file_path: Path, yaml_loader_class: type) -> dict:
-    with open(yaml_file_path, 'r', encoding=VARS_ENCODING) as yaml_file:
-        return yaml.load(yaml_file, Loader=yaml_loader_class)
-
-def merge_in_vars(vars: TemplateVariables, new_vars: dict):
-    duplicate_keys = vars.keys() & new_vars
-    if len(duplicate_keys) > 0:
-        first_duplicate_key = next(iter(duplicate_keys))
-        raise ValueError(f'encountered duplicate variable {first_duplicate_key}')
-
-    vars.update(new_vars)
-
-def inject_service_var(vars: TemplateVariables, name: str, value: Any):
-    if name in vars:
-        raise ValueError(f'service variable name {name} is already used')
-    vars[name] = value
 
 def post_process_vars(
         vars:                          TemplateVariables,
