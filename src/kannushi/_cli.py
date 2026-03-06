@@ -72,7 +72,7 @@ class _MainExitCode(int, Enum):
     INTERRUPTED            = _SIGNAL_EXIT_CODE_OFFSET + signal.SIGINT
 
     @staticmethod
-    def from_render_dir_result(render_dir_result: RenderDirResult) -> _MainExitCode:
+    def from_render_dir_result(render_dir_result: RenderDirResult) -> "_MainExitCode":
         if render_dir_result.was_interrupted:
             return _MainExitCode.INTERRUPTED
         if render_dir_result.errors_count > 0:
