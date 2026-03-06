@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+## [0.1.2][0.1.2] - 2026-03-07
+
+### Fixed
+
+- Fixed the issue on Python v3.13 and older where `NameError` would be raised on launch.
+
 ## [0.1.1][0.1.1] - 2026-03-06
 
 ### Fixed
@@ -36,6 +42,7 @@ Initial public release of **kannushi** - a command line utility for batch render
 - [`{% do %}` expression statements](https://jinja.palletsprojects.com/en/stable/extensions/#expression-statement) are supported in templates by means of the standard `jinja2.ext.do` Jinja2 extension.
 - [`jinja2-error`](https://pypi.org/project/jinja2-error/) extension is integrated to allow for use of the `{% error %}` Jinja tag to raise errors from template code.
 
-[unreleased]: https://github.com/terrapass/kannushi/compare/v0.1.1...HEAD
+[unreleased]: https://github.com/terrapass/kannushi/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/terrapass/kannushi/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/terrapass/kannushi/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/terrapass/kannushi/releases/tag/v0.1.0
