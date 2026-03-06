@@ -111,11 +111,11 @@ def main():
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
 
-    performance_logger = StageRuntimeReporter(config.is_verbose)
-    atexit.register(lambda: performance_logger.log_summary())
+    stage_time_reporter = StageRuntimeReporter(config.is_verbose)
+    atexit.register(lambda: stage_time_reporter.log_summary())
 
     try:
-        vars = load_vars_from_yaml_files(args.vars_glob, config.effective_jobs_count, performance_logger) if not args.vars_glob is None else TemplateVariables()
+        vars = load_vars_from_yaml_files(args.vars_glob, config.effective_jobs_count, stage_time_reporter) if not args.vars_glob is None else TemplateVariables()
     except KeyboardInterrupt:
         print_warning('warning: Interrupted by the user')
         exit(_MainExitCode.INTERRUPTED)
@@ -125,7 +125,7 @@ def main():
 
     if args.vars_processor_module_locator is not None:
         try:
-            post_process_vars(vars, args.vars_processor_module_locator, args.vars_processor_function_name, performance_logger)
+            post_process_vars(vars, args.vars_processor_module_locator, args.vars_processor_function_name, stage_time_reporter)
         except KeyboardInterrupt:
             print_warning('warning: Interrupted by the user')
             exit(_MainExitCode.INTERRUPTED)
@@ -147,7 +147,7 @@ def main():
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
-    result = render_dir(config, vars, performance_logger)
+    result = render_dir(config, vars, stage_time_reporter)
     if result.was_interrupted:
         print_warning(f"warning: Interrupted by the user ({result.skipped_count} template{'s' if result.skipped_count != 1 else ''} skipped)")
     if result.errors_count > 0:
