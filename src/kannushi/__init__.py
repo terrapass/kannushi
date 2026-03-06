@@ -32,8 +32,7 @@ TARGET_ENCODING = 'utf-8' #
 TEMPLATE_EXTENSION = '.jinja'
 TEMPLATE_GLOB      = '**/*' + TEMPLATE_EXTENSION
 
-TEMPLATE_PATH_VAR    = '_template_path' # Name of the template variable to be set to the currently rendered template's path
-TEMPLATE_PROGRAM_VAR = '_program_name'  # ...to be set to this script's name
+TEMPLATE_PATH_VAR = '_template_path' # Name of the template variable to be set to the currently rendered template's path
 
 ASYNC_POLLING_INTERVAL_SECONDS = 0.5 # Primarily determines the reaction time to Ctrl-C (KeyboardInterrupt)
 

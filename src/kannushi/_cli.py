@@ -119,8 +119,6 @@ def main():
         print_error('\n'.join(traceback.format_exception_only(e)))
         exit(_MainExitCode.VARS_LOADING_FAILED)
 
-    inject_service_var(vars, TEMPLATE_PROGRAM_VAR, parser.prog)
-
     if args.vars_processor_module_locator is not None:
         try:
             post_process_vars(vars, args.vars_processor_module_locator, args.vars_processor_function_name, performance_logger)
