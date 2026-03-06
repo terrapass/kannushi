@@ -1,4 +1,3 @@
-import argparse
 import importlib
 import importlib.util
 import random
@@ -11,7 +10,7 @@ from types import ModuleType
 from typing import Any, Callable, cast
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
-from functools import partial
+from functools import cached_property, partial
 from itertools import repeat
 from sys import stdout, stderr, modules as sys_modules, path as sys_path
 from timeit import default_timer
@@ -67,18 +66,9 @@ class RenderConfig:
     is_verbose:           bool
     is_color_disabled:    bool
 
-    def __init__(self, args: argparse.Namespace):
-        self.source_path          = args.source_path
-        self.target_path          = args.target_path
-        self.skip_glob            = args.skip_glob
-        self.random_seed          = args.random_seed
-        self.requested_jobs_count = self.__try_cap_jobs_count(args.jobs_count)
-        self.is_verbose           = args.is_verbose
-        self.is_color_disabled    = args.is_color_disabled
-
-    @property
+    @cached_property
     def effective_jobs_count(self) -> int:
-        return self.requested_jobs_count or cpu_count() or 1
+        return self.__try_cap_jobs_count(self.requested_jobs_count) or cpu_count() or 1
 
     @staticmethod
     def __try_cap_jobs_count(jobs_count: int | None) -> int | None:

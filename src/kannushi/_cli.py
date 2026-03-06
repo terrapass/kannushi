@@ -76,6 +76,21 @@ class _MainExitCode(int, Enum):
         return _MainExitCode.SUCCESS
 
 #
+# Service
+#
+
+def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
+    return RenderConfig(
+        source_path=args.source_path,
+        target_path=args.target_path,
+        skip_glob=args.skip_glob,
+        random_seed=args.random_seed,
+        requested_jobs_count=args.jobs_count,
+        is_verbose=args.is_verbose,
+        is_color_disabled=args.is_color_disabled,
+    )
+
+#
 # Main
 #
 
@@ -87,7 +102,7 @@ def main():
     if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
 
-    config = RenderConfig(args)
+    config = _make_render_config_from_args(args)
 
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
