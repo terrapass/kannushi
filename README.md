@@ -1,3 +1,6 @@
+# kannushi
+[![PyPI - Version](https://img.shields.io/pypi/v/kannushi)](https://pypi.org/project/kannushi/)
+
 **kannushi** is a command line utility for batch rendering of [Jinja](https://jinja.palletsprojects.com/en/stable/) templates from one directory into files in another directory.
 
 # Synopsis
