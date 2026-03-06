@@ -125,7 +125,7 @@ def main():
         except KeyboardInterrupt:
             print_warning('warning: Interrupted by the user')
             exit(_MainExitCode.INTERRUPTED)
-        except ModuleExecutionException as e:
+        except exceptions.ModuleExecutionException as e:
             print_error('\n'.join(traceback.format_exception(e.original_exception)))
             print_error(f"error: Failed to load module {args.vars_processor_module_locator} due to the exception above")
             exit(_MainExitCode.VARS_PROCESSING_FAILED)
@@ -133,7 +133,7 @@ def main():
             print_error(f"error: {e}")
             print(f'hint: make sure a valid Python module name or .py file path is given via {_VARS_PROCESSOR_MODULE_ARG}')
             exit(_MainExitCode.VARS_PROCESSING_FAILED)
-        except InvalidVarsProcessorInterface as e:
+        except exceptions.InvalidVarsProcessorInterface as e:
             print_error(f"error: {e}")
             exit(_MainExitCode.VARS_PROCESSING_FAILED)
         except BaseException as e:

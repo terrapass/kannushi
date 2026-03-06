@@ -20,6 +20,8 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from jinja2_error import ErrorExtension
 
+from . import exceptions
+
 #
 # Constants
 #
@@ -46,14 +48,6 @@ class TemplateVariables(dict):
      def __init__(self, vars: dict = {}):
          super().__init__(vars)
          self.__dict__ = self
-
-class ModuleExecutionException(ImportError):
-    def __init__(self, original_exception: BaseException):
-        self.original_exception = original_exception
-
-class InvalidVarsProcessorInterface(Exception):
-    def __init__(self, vars_processor_module_locator: str, vars_processor_function_name: str):
-        super().__init__(f"module '{vars_processor_module_locator}' does not expose the required {vars_processor_function_name}(vars: TemplateVariables) function")
 
 @dataclass
 class RenderConfig:
@@ -249,10 +243,10 @@ def post_process_vars(vars: TemplateVariables, vars_processor_module_locator: st
     assert isinstance(vars_processor_module, ModuleType)
 
     if not hasattr(vars_processor_module, vars_processor_function_name):
-        raise InvalidVarsProcessorInterface(vars_processor_module_locator, vars_processor_function_name)
+        raise exceptions.InvalidVarsProcessorInterface(vars_processor_module_locator, vars_processor_function_name)
     vars_processor_function = vars_processor_module.__getattribute__(vars_processor_function_name)
     if not callable(vars_processor_function):
-        raise InvalidVarsProcessorInterface(vars_processor_module_locator, vars_processor_function_name)
+        raise exceptions.InvalidVarsProcessorInterface(vars_processor_module_locator, vars_processor_function_name)
 
     print(f'Post-processing template variables dictionary using {vars_processor_module.__name__}.{vars_processor_function_name}()')
     performance_logger.on_stage_started(Stage.VARS_PROCESSING)
@@ -297,7 +291,7 @@ def load_module_from_file(module_path: Path) -> ModuleType:
     try:
         module_spec.loader.exec_module(module)
     except BaseException as e:
-        raise ModuleExecutionException(e)
+        raise exceptions.ModuleExecutionException(e)
 
     return module
 
