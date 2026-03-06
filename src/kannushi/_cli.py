@@ -31,7 +31,7 @@ _SIGNAL_EXIT_CODE_OFFSET = 128
 #
 
 def _make_cli_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=_CLI_DESCRIPTION)
+    parser = argparse.ArgumentParser(prog='kannushi', description=_CLI_DESCRIPTION)
 
     parser.add_argument('source_path', metavar='SOURCE_PATH', type=Path, help='root directory containing Jinja templates')
     parser.add_argument('target_path', metavar='TARGET_PATH', type=Path, help='target root directory for rendered files')

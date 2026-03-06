@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Dependency version requirements: Jinja2 to `>=3.0.0,<4.0.0`. PyYAML to `>=6.0.0,<7.0.0`, jinja2-error to `~=0.1.0`.
+- Program name is now displayed as `kannushi` in usage info and `--help` output.
 
 ## [0.1.1][0.1.1] - 2026-03-06
 
