@@ -5,7 +5,6 @@ import signal
 from pathlib import Path
 from os import path, cpu_count
 from dataclasses import dataclass, field
-from enum import Enum
 from types import ModuleType
 from typing import Any, Callable, cast
 from multiprocessing import Pool
@@ -21,6 +20,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from jinja2_error import ErrorExtension
 
 from . import exceptions
+from .timing import Stage, ProgressListener, NullProgressListener
 from ._logging import *
 
 #
@@ -99,73 +99,6 @@ class RenderTemplateResult:
     target_file_path:    Path
     render_time_seconds: float
 
-class Stage(str, Enum):
-    VARS_LOADING     = "YAML variables loading"
-    VARS_PROCESSING  = "Variables post-processing"
-    RENDER_POOL_INIT = "Render pool initialization"
-    JINJA_RENDER     = "Jinja templates rendering"
-
-class PerformanceLogger:
-    def __init__(self, is_verbose: bool):
-        self.__init_time_seconds         = default_timer()
-        self.__stage_start_times_seconds = dict()
-        self.__stage_end_times_seconds   = dict()
-        self.__stage_errors_counts       = dict()
-        self.__interrupted_stages        = set()
-        self.__is_verbose                = is_verbose
-
-    @property
-    def current_stage(self) -> Stage | None:
-        unfinished_stages = self.__stage_start_times_seconds.keys() - self.__stage_end_times_seconds.keys()
-        assert len(unfinished_stages) <= 1, "must not have multiple unfinished stages simultaneously"
-        try:
-            return next(iter(unfinished_stages))
-        except StopIteration:
-            return None
-
-    def on_stage_started(self, stage: Stage):
-        assert stage not in self.__stage_start_times_seconds
-        self.__stage_start_times_seconds[stage] = default_timer()
-
-    def on_stage_ended(self, stage: Stage, errors_count: int, was_interrupted: bool):
-        assert stage in self.__stage_start_times_seconds and stage not in self.__stage_end_times_seconds
-        assert stage not in self.__stage_errors_counts
-        self.__stage_end_times_seconds[stage] = default_timer()
-        self.__stage_errors_counts[stage]     = errors_count
-        if was_interrupted:
-            self.__interrupted_stages.add(stage)
-        stage_verb_str = "interrupted after" if was_interrupted else "completed in"
-        print(f"{stage.value} {stage_verb_str} {self.__stage_time_seconds(stage):.1f} seconds{self.__format_errors_count(' with {0}', errors_count)}")
-
-    def log_summary(self):
-        total_runtime_seconds = default_timer() - self.__init_time_seconds
-        print(f"Total runtime: {total_runtime_seconds:.1f} seconds{', stages:' if self.__is_verbose else ''}")
-        if not self.__is_verbose:
-            return
-        for stage in Stage:
-            stage_time_seconds = self.__stage_time_seconds(stage)
-            if stage_time_seconds is None:
-                continue
-            assert stage in self.__stage_errors_counts
-            stage_stats_str = self.__format_stage_stats(stage_time_seconds, self.__stage_errors_counts[stage], stage in self.__interrupted_stages)
-            print(f"- {stage.value:<27}{stage_stats_str}")
-
-    def __stage_time_seconds(self, stage: Stage) -> float | None:
-        if stage not in self.__stage_start_times_seconds or stage not in self.__stage_end_times_seconds:
-            return None
-        return self.__stage_end_times_seconds[stage] - self.__stage_start_times_seconds[stage]
-
-    @staticmethod
-    def __format_errors_count(format: str, errors_count: int) -> str:
-        return format.format(f"{errors_count} error{'s' if errors_count != 1 else ''}") if errors_count > 0 else ""
-
-    @staticmethod
-    def __format_stage_stats(stage_time_seconds: float, errors_count: int, was_interrupted: bool) -> str:
-        errors_count_str_template = ' ({0}, interrupted)' if was_interrupted else ' ({0})'
-        errors_count_str          = PerformanceLogger.__format_errors_count(errors_count_str_template, errors_count)
-        secondary_stats_str       = errors_count_str if len(errors_count_str) > 0 else (" (interrupted)" if was_interrupted else "")
-        return f"{stage_time_seconds:.1f}s{secondary_stats_str}"
-
 #
 # Globals
 #
@@ -177,7 +110,7 @@ _vars      = None
 # Service
 #
 
-def load_vars_from_yaml_files(vars_files_glob: str, jobs_count: int, performance_logger: PerformanceLogger) -> TemplateVariables:
+def load_vars_from_yaml_files(vars_files_glob: str, jobs_count: int, progress_listener: ProgressListener = NullProgressListener()) -> TemplateVariables:
     var_files_paths = glob.glob(vars_files_glob, recursive=True)
     var_files_count = len(var_files_paths)
 
@@ -189,7 +122,7 @@ def load_vars_from_yaml_files(vars_files_glob: str, jobs_count: int, performance
     print(f"Loading template variables from {len(var_files_paths)} files matching {vars_files_glob} in {adjusted_jobs_count} parallel jobs...")
 
     yaml_loader_class  = select_yaml_loader_class()
-    performance_logger.on_stage_started(Stage.VARS_LOADING)
+    progress_listener.on_stage_started(Stage.VARS_LOADING)
     try:
         with Pool(adjusted_jobs_count, signal.signal, (signal.SIGINT, signal.SIG_IGN)) as process_pool:
             vars_parts = process_pool.starmap(load_dict_from_yaml_file, zip(var_files_paths, repeat(yaml_loader_class)))
@@ -198,12 +131,12 @@ def load_vars_from_yaml_files(vars_files_glob: str, jobs_count: int, performance
         for vars_part in vars_parts:
             merge_in_vars(vars, vars_part)
 
-        performance_logger.on_stage_ended(Stage.VARS_LOADING, 0, False)
+        progress_listener.on_stage_ended(Stage.VARS_LOADING, 0, False)
 
         return vars
     except BaseException as e:
         is_keyboard_interrupt = isinstance(e, KeyboardInterrupt)
-        performance_logger.on_stage_ended(Stage.VARS_LOADING, 0 if is_keyboard_interrupt else 1, is_keyboard_interrupt)
+        progress_listener.on_stage_ended(Stage.VARS_LOADING, 0 if is_keyboard_interrupt else 1, is_keyboard_interrupt)
         raise
 
 def select_yaml_loader_class() -> type:
@@ -232,7 +165,12 @@ def inject_service_var(vars: TemplateVariables, name: str, value: Any):
         raise ValueError(f'service variable name {name} is already used')
     vars[name] = value
 
-def post_process_vars(vars: TemplateVariables, vars_processor_module_locator: str, vars_processor_function_name: str, performance_logger: PerformanceLogger):
+def post_process_vars(
+        vars:                          TemplateVariables,
+        vars_processor_module_locator: str,
+        vars_processor_function_name:  str,
+        progress_listener:             ProgressListener = NullProgressListener()
+    ):
     vars_processor_module = load_module(vars_processor_module_locator)
     assert isinstance(vars_processor_module, ModuleType)
 
@@ -243,15 +181,15 @@ def post_process_vars(vars: TemplateVariables, vars_processor_module_locator: st
         raise exceptions.InvalidVarsProcessorInterface(vars_processor_module_locator, vars_processor_function_name)
 
     print(f'Post-processing template variables dictionary using {vars_processor_module.__name__}.{vars_processor_function_name}()')
-    performance_logger.on_stage_started(Stage.VARS_PROCESSING)
+    progress_listener.on_stage_started(Stage.VARS_PROCESSING)
     try:
         vars_processor_function(vars)
     except BaseException as e:
         is_keyboard_interrupt = isinstance(e, KeyboardInterrupt)
-        performance_logger.on_stage_ended(Stage.VARS_PROCESSING, 0 if is_keyboard_interrupt else 1, is_keyboard_interrupt)
+        progress_listener.on_stage_ended(Stage.VARS_PROCESSING, 0 if is_keyboard_interrupt else 1, is_keyboard_interrupt)
         raise
     else:
-        performance_logger.on_stage_ended(Stage.VARS_PROCESSING, 0, False)
+        progress_listener.on_stage_ended(Stage.VARS_PROCESSING, 0, False)
 
 def load_module(module_locator: str) -> ModuleType:
     try:
@@ -289,13 +227,22 @@ def load_module_from_file(module_path: Path) -> ModuleType:
 
     return module
 
-def render_dir(config: RenderConfig, vars: TemplateVariables, performance_logger: PerformanceLogger) -> RenderDirResult:
+def render_dir(config: RenderConfig, vars: TemplateVariables, progress_listener: ProgressListener) -> RenderDirResult:
     templates_paths = config.source_path.glob(TEMPLATE_GLOB)
     skipped_paths   = config.source_path.glob(config.skip_glob) if config.skip_glob is not None else []
     selected_paths  = [template_path for template_path in templates_paths if template_path not in skipped_paths]
 
+    current_stage = None
+    def change_stage(stage: Stage | None, current_stage_errors_count: int = 0, was_interrupted: bool = False):
+        nonlocal current_stage
+        if current_stage is not None:
+            progress_listener.on_stage_ended(current_stage, current_stage_errors_count, was_interrupted)
+        current_stage = stage
+        if current_stage is not None:
+            progress_listener.on_stage_started(current_stage)
+
     print(f'Initializing {config.effective_jobs_count} render processes...')
-    performance_logger.on_stage_started(Stage.RENDER_POOL_INIT)
+    change_stage(Stage.RENDER_POOL_INIT)
 
     def job_success_callback(template_result: RenderTemplateResult):
         result.rendered_templates_count += 1
@@ -321,10 +268,9 @@ def render_dir(config: RenderConfig, vars: TemplateVariables, performance_logger
         try:
             async_results = [render_template_async(template_path) for template_path in selected_paths]
             process_pool.close()
-            performance_logger.on_stage_ended(Stage.RENDER_POOL_INIT, 0, False)
 
+            change_stage(Stage.JINJA_RENDER)
             print(f'Rendering {len(selected_paths)} templates in {config.effective_jobs_count} parallel jobs...')
-            performance_logger.on_stage_started(Stage.JINJA_RENDER)
 
             for async_result in async_results:
                 while not async_result.ready():
@@ -335,8 +281,7 @@ def render_dir(config: RenderConfig, vars: TemplateVariables, performance_logger
             result.was_interrupted = True
             process_pool.terminate()
 
-    if (current_stage := performance_logger.current_stage) is not None:
-        performance_logger.on_stage_ended(current_stage, result.errors_count, result.was_interrupted)
+    change_stage(None, result.errors_count if current_stage == Stage.JINJA_RENDER else 0, result.was_interrupted)
 
     return result
 

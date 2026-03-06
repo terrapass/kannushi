@@ -9,6 +9,7 @@ from sys import platform as sys_platform
 from io import TextIOWrapper
 
 from . import *
+from .timing import StageRuntimeReporter
 from ._logging import *
 
 #
@@ -108,7 +109,7 @@ def main():
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
 
-    performance_logger = PerformanceLogger(config.is_verbose)
+    performance_logger = StageRuntimeReporter(config.is_verbose)
     atexit.register(lambda: performance_logger.log_summary())
 
     try:
