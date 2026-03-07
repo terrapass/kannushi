@@ -1,5 +1,7 @@
 # kannushi
 [![PyPI - Version](https://img.shields.io/pypi/v/kannushi)](https://pypi.org/project/kannushi/)
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fterrapass%2Fkannushi%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml)
+
 
 **kannushi** is a command line utility for batch rendering of [Jinja](https://jinja.palletsprojects.com/en/stable/) templates from one directory into files in another directory.
 
