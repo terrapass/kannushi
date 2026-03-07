@@ -198,6 +198,7 @@ def _render_template_job(config: RenderConfig, template_path: Path) -> _RenderTe
 def _render_template(jinja_env: Environment, template_name: str, target_file_path: Path, vars: dict):
     template = jinja_env.get_template(template_name)
     rendered_content = template.render(vars)
+    target_file_path.parent.mkdir(exist_ok=True, parents=True)
     with open(target_file_path, 'w', encoding=_TARGET_ENCODING) as target_file:
         target_file.write(rendered_content)
 

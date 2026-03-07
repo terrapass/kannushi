@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+### Fixed
+
+- Fixed the issue where a rendered file would fail to be created if any of its target path's parent directories didn't exist.
+
 ### Changed
 
 - The `kannushi` package API has been narrowed to only expose the minimum that would be sufficient for implementing an alternative CLI or GUI. Implementation details and standard/thirdparty reimports are no longer exposed by the package interface.
