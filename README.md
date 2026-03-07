@@ -3,9 +3,35 @@
 [![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fterrapass%2Fkannushi%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml)](https://www.python.org/downloads/)
 
 
-**kannushi** is a command line utility for batch rendering of [Jinja](https://jinja.palletsprojects.com/en/stable/) templates from one directory into files in another directory.
+**kannushi** is a command line utility for batch rendering of [Jinja2](https://jinja.palletsprojects.com/en/stable/) templates.
 
-# Synopsis
+In a nutshell, it takes a directory containing `*.jinja` files and recursively renders those templates into a given target directory, mirroring the folder structure.
+
+For example:
+```sh
+kannushi -j8 --vars "config/**/*.yml" src_templates/ src/
+```
+...will render Jinja template files in 8 parallel jobs (`-j8`) from `src_templates/` into `src/`, based on data from YAML files inside `config/`.\
+Each rendered file will have the same name as its source template, minus the `.jinja` extension. It will also be placed at the same path relative to `src/` as its source template is relative to `src_templates/`. So, for example `src_templates/some/path/filename.ext.jinja` will be rendered into `src/some/path/filename.ext`.\
+Existing files in `src/` that reside at paths corresponding to templates will be overwritten. All other files in `src/` will be left untouched.
+
+As the above example suggests, extensive template-based code generation is the use case that **kannushi** is primarily geared towards.
+
+While there are several existing solutions for rendering Jinja in the command line, notably [`jinja2-cli`](https://pypi.org/project/jinja2-cli/) and [`j2cli`](https://pypi.org/project/j2cli/)<sup>(unmaintained)</sup>, their interfaces typically deal with individual template files - so some additional scripting would be involved in cases where rendering of an entire directory structure is required.
+
+## Installation
+
+Via `pip`:
+```sh
+pip install kannushi
+```
+
+Via `uv`:
+```sh
+uv tool install kannushi
+```
+
+## Synopsis
 ```
 usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
                 [--vars-processor VARS_PROCESSOR_MODULE]

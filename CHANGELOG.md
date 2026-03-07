@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - MIT license in [`LICENSE`](https://github.com/terrapass/kannushi/blob/master/LICENSE).
+- Extended README.md with a basic usage example and explanation of the tool's purpose, as well as installation commands for `pip` and `uv`.
 
 ### Removed
 
