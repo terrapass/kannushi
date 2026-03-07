@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+### Changed
+
+- The `kannushi` package API has been narrowed to only expose the minimum that would be sufficient for implementing an alternative CLI or GUI. Implementation details and standard/thirdparty reimports are no longer exposed by the package interface.
+- Dependency version requirements: Jinja2 to `>=3.0.0,<4.0.0`; PyYAML to `>=3.0.0,<4.0.0`; jinja2-error to `~=0.1.0`.
+- Program name is now displayed as `kannushi` in usage info and `--help` output.
+
 ### Added
 
 - MIT license in [`LICENSE`](https://github.com/terrapass/kannushi/blob/master/LICENSE).
 
-### Changed
+### Removed
 
-- Dependency version requirements: Jinja2 to `>=3.0.0,<4.0.0`. PyYAML to `>=6.0.0,<7.0.0`, jinja2-error to `~=0.1.0`.
-- Program name is now displayed as `kannushi` in usage info and `--help` output.
+- The `_program_name` service variable is no longer exposed to rendered templates.
 
 ## [0.1.2][0.1.2] - 2026-03-07
 
