@@ -1,7 +1,7 @@
 [project]
 name = "kannushi"
 version = "0.2.0"
-description = "A batch renderer for Jinja templates"
+description = "A command line tool for batch rendering of Jinja templates"
 readme = "README.md"
 authors = [
     { name = "Taras Denysenko", email = "terrapass93@gmail.com" }
