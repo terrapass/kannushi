@@ -95,10 +95,11 @@ options:
                         single-parameter function in VARS_PROCESSOR_MODULE which
                         vars dictionary will be passed to (defaults to
                         process_vars)
-  --seed RANDOM_SEED    RNG seed to use for any randomization
+  --seed RANDOM_SEED    RNG seed to use for any randomization within templates
   -j, --jobs JOBS_COUNT
                         number of parallel jobs (defaults to the number of logical
                         CPU cores)
-  -v, --verbose         output processed file paths to stdout
+  -v, --verbose         output processed file paths and their render times to
+                        stdout
   --no-color            disable output coloring
-  ```
+```
