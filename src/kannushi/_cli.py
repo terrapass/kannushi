@@ -49,11 +49,11 @@ def _make_cli_parser() -> argparse.ArgumentParser:
         help=f'single-parameter function in VARS_PROCESSOR_MODULE which vars dictionary will be passed to (defaults to {_DEFAULT_VARS_PROCESSOR_FUNCTION_NAME})'
     )
 
-    parser.add_argument('--seed', dest='random_seed', metavar='RANDOM_SEED', type=int, help='RNG seed to use for any randomization')
+    parser.add_argument('--seed', dest='random_seed', metavar='RANDOM_SEED', type=int, help='RNG seed to use for any randomization within templates')
 
     parser.add_argument('-j', '--jobs', dest='jobs_count', metavar='JOBS_COUNT', type=int, help='number of parallel jobs (defaults to the number of logical CPU cores)')
 
-    parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths to stdout')
+    parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
     parser.add_argument('--no-color', action='store_true', dest='is_color_disabled', help='disable output coloring')
 
     return parser
