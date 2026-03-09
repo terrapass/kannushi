@@ -3,7 +3,7 @@
 [![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fterrapass%2Fkannushi%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml)](https://www.python.org/downloads/)
 
 
-**kannushi** is a command line utility for batch rendering of [Jinja2](https://jinja.palletsprojects.com/en/stable/) templates.
+**kannushi** is a command line utility for batch rendering of [Jinja](https://jinja.palletsprojects.com/en/stable/) templates.
 
 In a nutshell, it takes a directory containing `*.jinja` files and recursively renders those templates into a given target directory, mirroring the folder structure.
 
@@ -17,7 +17,42 @@ Existing files in `src/` that reside at paths corresponding to templates will be
 
 As the above example suggests, extensive template-based code generation is the use case that **kannushi** is primarily geared towards.
 
-While there are several existing solutions for rendering Jinja in the command line, notably [`jinja2-cli`](https://pypi.org/project/jinja2-cli/) and [`j2cli`](https://pypi.org/project/j2cli/)<sup>(unmaintained)</sup>, their interfaces typically deal with individual template files - so some additional scripting would be involved in cases where rendering of an entire directory structure is required.
+---
+
+Optionally, for cases where using static data from YAML files doesn't quite cut it, custom Python code can also be provided to **kannushi** by means of the `--vars-processor` argument, which can be used either alone or in combination with `--vars`.\
+For example, suppose we have a Python file like this, called `processor.py`, in the directory where `kannushi` is run from:
+```py
+# processor.py
+import math
+...
+
+def custom_function_exposed_to_templates():
+    ...
+
+def process_vars(vars):
+    """`process_vars()` will be called by kannushi before any templates are rendered.
+    `vars` is a dict-like object that will utlimately be used as the context for rendering.
+
+    If `--vars` is given, `vars` will be pre-populated with data loaded from YAML files.
+    """
+    # (assuming some_variable was loaded from YAML given by --vars)
+    vars.some_variable_squared = vars.some_variable * vars.some_variable
+    vars.utils = {
+        "custom_function": custom_function_exposed_to_templates,
+        "distance": math.dist
+    }
+    ...
+```
+
+We can have **kannushi** make use of it like so (building on the previous example):
+```
+kannushi -j8 --vars "config/**/*.yml" --vars-processor processor.py src_templates/ src/
+```
+In this case the dictionary of input data will be read from YAML files under `config/` and passed as the `vars` argument to the `process_vars()` function in `processor.py`, where it can undergo arbitrary modifications, before being used as the context for rendering of Jinja templates from `src_templates/`.
+
+As seen in the `process_vars()` code example above, besides calculating some template variables on the fly, this mechanism can also be used to expose custom Python functions to the Jinja code in the rendered templates.
+
+It's also possible to use `--vars-processor` alone, without `--vars`, provided the script's code doesn't rely on data loaded from YAML. In that case the dictionary passed as argument to `process_vars()` will start off empty and can be populated entirely by Python code.
 
 ## Installation
 
