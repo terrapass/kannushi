@@ -26,7 +26,7 @@ For example, suppose we have a Python file like this, called `processor.py`, in 
 import math
 ...
 
-def custom_function_exposed_to_templates():
+def custom_function_exposed_to_templates(arg):
     ...
 
 def process_vars(vars):
@@ -45,7 +45,7 @@ def process_vars(vars):
 ```
 
 We can have **kannushi** make use of it like so (building on the previous example):
-```
+```sh
 kannushi -j8 --vars "config/**/*.yml" --vars-processor processor.py src_templates/ src/
 ```
 In this case the dictionary of input data will be read from YAML files under `config/` and passed as the `vars` argument to the `process_vars()` function in `processor.py`, where it can undergo arbitrary modifications, before being used as the context for rendering of Jinja templates from `src_templates/`.
