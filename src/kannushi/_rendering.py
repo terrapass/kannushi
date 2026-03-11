@@ -11,8 +11,8 @@ from sys import stdout
 from timeit import default_timer
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
-from jinja2_error import ErrorExtension
 
+from .extensions import ErrorExtension
 from .timing import Stage, ProgressListener, NullProgressListener
 from ._vars import TemplateVariables
 from ._vars.loading import inject_service_var
