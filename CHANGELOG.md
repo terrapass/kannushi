@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `{% error %}` tag message now also includes the template name and line number.
+- Package API now exposes the custom `extensions.ErrorExtension`.
 
 ### Changed
 
