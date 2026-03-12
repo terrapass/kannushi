@@ -114,7 +114,7 @@ def main():
     atexit.register(lambda: stage_time_reporter.log_summary())
 
     try:
-        vars = load_vars_from_yaml_files(args.vars_glob, config.effective_jobs_count, stage_time_reporter) if not args.vars_glob is None else TemplateVariables()
+        vars = load_vars_from_yaml_files(args.vars_glob, config.effective_jobs_count, stage_time_reporter) if args.vars_glob is not None else TemplateVariables()
     except KeyboardInterrupt:
         print_warning('warning: Interrupted by the user')
         exit(_MainExitCode.INTERRUPTED)
