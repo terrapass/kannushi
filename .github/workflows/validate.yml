@@ -3,6 +3,7 @@ name: "Run Static Analysis"
 on: [push, pull_request]
 
 jobs:
+
   pyright:
     name: "Type Check (Pyright)"
     runs-on: ubuntu-latest
@@ -23,3 +24,16 @@ jobs:
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
       - name: "Run Pyright"
         uses: jakebailey/pyright-action@v3
+
+  ruff:
+    name: "Lint (Ruff)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+      - name: "Set up Python"
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+      - name: "Run Ruff"
+        uses: astral-sh/ruff-action@v3
