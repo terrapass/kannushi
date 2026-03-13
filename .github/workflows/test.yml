@@ -14,6 +14,10 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.14"
+        is-python-version-unreleased: [false]
+        include:
+          - python-version: "3.15"
+            is-python-version-unreleased: true
     steps:
       # TODO: Extract duplicated steps from here and validate.yml into a composite action
       - name: "Checkout"
@@ -33,4 +37,4 @@ jobs:
       # END TODO
       - name: "Run `kannushi --help`"
         run: kannushi --help
-
+        continue-on-error: ${{ matrix.is-python-version-unreleased }}
