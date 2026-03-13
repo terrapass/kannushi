@@ -1,0 +1,36 @@
+name: "Run Tests"
+
+on: [push, pull_request]
+
+jobs:
+
+  smoke-test-help:
+    name: "Smoke Test --help"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+    steps:
+      # TODO: Extract duplicated steps from here and validate.yml into a composite action
+      - name: "Checkout"
+        uses: actions/checkout@v6
+      - name: "Set up Python"
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v7
+      - name: "uv sync"
+        run: uv sync --python ${{ matrix.python-version }} --locked
+      - name: "Activate uv virtualenv"
+        run: |
+          source .venv/bin/activate
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
+      # END TODO
+      - name: "Run `kannushi --help`"
+        run: kannushi --help
+
