@@ -1,7 +1,7 @@
 # kannushi
 [![PyPI - Version](https://img.shields.io/pypi/v/kannushi)](https://pypi.org/project/kannushi/)
 [![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fterrapass%2Fkannushi%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml)](https://www.python.org/downloads/)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/terrapass/kannushi/validate.yml?logo=github)](https://github.com/terrapass/kannushi/actions/workflows/validate.yml)
+[![GitHub branch check runs](https://img.shields.io/github/check-runs/terrapass/kannushi/master?logo=github)](https://github.com/terrapass/kannushi/actions?query=branch%3Amaster)
 
 
 **kannushi** is a command line utility for batch rendering of [Jinja](https://jinja.palletsprojects.com/en/stable/) templates.
