@@ -69,14 +69,15 @@ uv tool install kannushi
 
 ## Synopsis
 ```
-usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB] [--vars-processor VARS_PROCESSOR_MODULE]
-                [--vars-processor-func VARS_PROCESSOR_FUNCTION] [--seed RANDOM_SEED] [-j JOBS_COUNT] [-v]
-                [--no-color]
+usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
+                [--vars-processor VARS_PROCESSOR_MODULE]
+                [--vars-processor-func VARS_PROCESSOR_FUNCTION] [--seed RANDOM_SEED]
+                [-j JOBS_COUNT] [-v] [--no-color]
                 SOURCE_PATH TARGET_PATH
 
-Renders all Jinja templates in a directory into files in another directory, preserving the folder structure.
-Templates must use UTF-8 (with or without BOM), rendered files will reflect their source templates' BOM or
-lack thereof.
+Renders all Jinja templates in a directory into files in another directory, preserving the folder
+structure. Templates must use UTF-8 (with or without BOM), rendered files will reflect their
+source templates' BOM or lack thereof.
 
 positional arguments:
   SOURCE_PATH           root directory containing Jinja templates
@@ -90,8 +91,8 @@ options:
   --vars-processor VARS_PROCESSOR_MODULE
                         Python file/module to use for variables dictionary post-processing
   --vars-processor-func VARS_PROCESSOR_FUNCTION
-                        single-parameter function in VARS_PROCESSOR_MODULE which vars dictionary will be
-                        passed to (defaults to process_vars)
+                        single-parameter function in VARS_PROCESSOR_MODULE which vars dictionary
+                        will be passed to (defaults to process_vars)
   --seed RANDOM_SEED    RNG seed to use for any randomization within templates
   -j, --jobs JOBS_COUNT
                         number of parallel jobs (defaults to the number of logical CPU cores)
