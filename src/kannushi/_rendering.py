@@ -3,7 +3,7 @@ import signal
 from pathlib import Path
 from os import path, cpu_count
 from dataclasses import dataclass, field
-from typing import Any, Callable, cast
+from typing import Any, Callable, Protocol, cast
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
 from functools import cached_property, partial
@@ -31,6 +31,13 @@ _TEMPLATE_GLOB      = '**/*' + _TEMPLATE_EXTENSION
 _TEMPLATE_PATH_VAR = '_template_path' # Name of the template variable to be set to the currently rendered template's path
 
 _ASYNC_POLLING_INTERVAL_SECONDS = 0.5 # Primarily determines the reaction time to Ctrl-C (KeyboardInterrupt)
+
+#
+# Protocols
+#
+
+class RenderHandler(Protocol):
+    def __call__(self, target_file_path: Path, rendered_content: str) -> Any: ...
 
 #
 # Interface types
@@ -110,7 +117,7 @@ def default_render_handler(target_file_path: Path, rendered_content: str) -> Non
 def render_dir(
     config:            RenderConfig,
     vars:              TemplateVariables,
-    render_handler:    Callable[[Path, str], Any] = default_render_handler,
+    render_handler:    RenderHandler    = default_render_handler,
     progress_listener: ProgressListener = NullProgressListener()
 ) -> RenderDirResult:
     templates_paths = config.source_path.glob(_TEMPLATE_GLOB)
@@ -189,7 +196,7 @@ def _init_render_template_process(source_path: Path, vars: TemplateVariables, is
     _vars = vars
     set_color_disabled(is_color_disabled)
 
-def _render_template_job(config: RenderConfig, template_path: Path, render_handler: Callable[[Path, str], Any]) -> _RenderTemplateResult:
+def _render_template_job(config: RenderConfig, template_path: Path, render_handler: RenderHandler) -> _RenderTemplateResult:
     """This function is the entry point for individual template rendering jobs run in parallel"""
 
     assert isinstance(_jinja_env, Environment)
