@@ -146,7 +146,7 @@ def main():
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
-    result = render_dir(config, vars, stage_time_reporter)
+    result = render_dir(config, vars, progress_listener=stage_time_reporter)
     if result.was_interrupted:
         print_warning(f"warning: Interrupted by the user ({result.skipped_count} template{'s' if result.skipped_count != 1 else ''} skipped)")
     if result.errors_count > 0:

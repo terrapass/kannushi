@@ -3,7 +3,7 @@ import signal
 from pathlib import Path
 from os import path, cpu_count
 from dataclasses import dataclass, field
-from typing import Callable, cast
+from typing import Any, Callable, cast
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
 from functools import cached_property, partial
@@ -61,10 +61,11 @@ class RenderConfig:
 
 @dataclass
 class RenderDirResult:
-    selected_templates_count: int        = 0
-    rendered_templates_count: int        = 0
-    failed_template_paths:    list[Path] = field(default_factory=list)
-    was_interrupted:          bool       = False
+    selected_templates_count: int             = 0
+    rendered_templates_count: int             = 0
+    failed_template_paths:    list[Path]      = field(default_factory=list)
+    was_interrupted:          bool            = False
+    render_handler_results:   dict[Path, Any] = field(default_factory=dict)
 
     @property
     def errors_count(self) -> int:
@@ -86,8 +87,9 @@ class RenderDirResult:
 
 @dataclass
 class _RenderTemplateResult:
-    target_file_path:    Path
-    render_time_seconds: float
+    target_file_path:      Path
+    render_time_seconds:   float
+    render_handler_result: Any = None
 
 #
 # Globals
@@ -100,7 +102,17 @@ _vars      = None
 # Interface
 #
 
-def render_dir(config: RenderConfig, vars: TemplateVariables, progress_listener: ProgressListener = NullProgressListener()) -> RenderDirResult:
+def default_render_handler(target_file_path: Path, rendered_content: str) -> None:
+    target_file_path.parent.mkdir(exist_ok=True, parents=True)
+    with open(target_file_path, 'w', encoding=_TARGET_ENCODING) as target_file:
+        target_file.write(rendered_content)
+
+def render_dir(
+    config:            RenderConfig,
+    vars:              TemplateVariables,
+    render_handler:    Callable[[Path, str], Any] = default_render_handler,
+    progress_listener: ProgressListener = NullProgressListener()
+) -> RenderDirResult:
     templates_paths = config.source_path.glob(_TEMPLATE_GLOB)
     skipped_paths   = config.source_path.glob(config.skip_glob) if config.skip_glob is not None else []
     selected_paths  = [template_path for template_path in templates_paths if template_path not in skipped_paths]
@@ -119,6 +131,7 @@ def render_dir(config: RenderConfig, vars: TemplateVariables, progress_listener:
 
     def job_success_callback(template_result: _RenderTemplateResult):
         result.rendered_templates_count += 1
+        result.render_handler_results[template_result.target_file_path] = template_result.render_handler_result
         if config.is_verbose:
             print(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
 
@@ -134,7 +147,7 @@ def render_dir(config: RenderConfig, vars: TemplateVariables, progress_listener:
         def render_template_async(template_path) -> AsyncResult:
             return process_pool.apply_async(
                 _render_template_job,
-                (config, template_path),
+                (config, template_path, render_handler),
                 callback=job_success_callback,
                 error_callback=cast(Callable[[BaseException], None], partial(job_error_callback, template_path))
             )
@@ -176,7 +189,7 @@ def _init_render_template_process(source_path: Path, vars: TemplateVariables, is
     _vars = vars
     set_color_disabled(is_color_disabled)
 
-def _render_template_job(config: RenderConfig, template_path: Path) -> _RenderTemplateResult:
+def _render_template_job(config: RenderConfig, template_path: Path, render_handler: Callable[[Path, str], Any]) -> _RenderTemplateResult:
     """This function is the entry point for individual template rendering jobs run in parallel"""
 
     assert isinstance(_jinja_env, Environment)
@@ -189,18 +202,16 @@ def _render_template_job(config: RenderConfig, template_path: Path) -> _RenderTe
     inject_service_var(_vars, _TEMPLATE_PATH_VAR, _replace_backslashes(template_path))
     try:
         random.seed(config.random_seed)
-        _render_template(_jinja_env, template_name, target_file_path, _vars)
+        rendered_content      = _render_template(_jinja_env, template_name, _vars)
+        render_handler_result = render_handler(target_file_path, rendered_content)
     finally:
         del _vars[_TEMPLATE_PATH_VAR]
 
-    return _RenderTemplateResult(target_file_path, default_timer() - render_start_time_seconds)
+    return _RenderTemplateResult(target_file_path, default_timer() - render_start_time_seconds, render_handler_result)
 
-def _render_template(jinja_env: Environment, template_name: str, target_file_path: Path, vars: dict):
+def _render_template(jinja_env: Environment, template_name: str, vars: dict) -> str:
     template = jinja_env.get_template(template_name)
-    rendered_content = template.render(vars)
-    target_file_path.parent.mkdir(exist_ok=True, parents=True)
-    with open(target_file_path, 'w', encoding=_TARGET_ENCODING) as target_file:
-        target_file.write(rendered_content)
+    return template.render(vars)
 
 def _convert_template_path(source_dir_path: Path, target_dir_path: Path, template_path: Path) -> tuple[str, Path]:
     template_name    = _source_template_path_to_name(source_dir_path, template_path)
