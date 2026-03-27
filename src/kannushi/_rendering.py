@@ -22,8 +22,8 @@ from ._logging import set_color_disabled, print_warning, print_error
 # Constants
 #
 
-_SOURCE_ENCODING = 'utf-8' # Treating both source and rendered content as regular UTF-8 handles BOM correctly.
-_TARGET_ENCODING = 'utf-8' #
+SOURCE_ENCODING = 'utf-8' # Treating both source and rendered content as regular UTF-8 handles BOM correctly.
+TARGET_ENCODING = 'utf-8' #
 
 _TEMPLATE_EXTENSION = '.jinja'
 _TEMPLATE_GLOB      = '**/*' + _TEMPLATE_EXTENSION
@@ -111,7 +111,7 @@ _vars      = None
 
 def default_render_handler(target_file_path: Path, rendered_content: str) -> None:
     target_file_path.parent.mkdir(exist_ok=True, parents=True)
-    with open(target_file_path, 'w', encoding=_TARGET_ENCODING) as target_file:
+    with open(target_file_path, 'w', encoding=TARGET_ENCODING) as target_file:
         target_file.write(rendered_content)
 
 def render_dir(
@@ -188,7 +188,7 @@ def _init_render_template_process(source_path: Path, vars: TemplateVariables, is
 
     global _jinja_env, _vars
     _jinja_env = Environment(
-        loader=FileSystemLoader(source_path, encoding=_SOURCE_ENCODING),
+        loader=FileSystemLoader(source_path, encoding=SOURCE_ENCODING),
         extensions=['jinja2.ext.do', ErrorExtension],
         autoescape=False,
         undefined=StrictUndefined
