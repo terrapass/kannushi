@@ -72,7 +72,7 @@ uv tool install kannushi
 usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
                 [--vars-processor VARS_PROCESSOR_MODULE]
                 [--vars-processor-func VARS_PROCESSOR_FUNCTION] [--seed RANDOM_SEED]
-                [-j JOBS_COUNT] [-v] [--no-color]
+                [-j JOBS_COUNT] [--check] [-v] [--no-color]
                 SOURCE_PATH TARGET_PATH
 
 Renders all Jinja templates in a directory into files in another directory, preserving the folder
@@ -96,6 +96,8 @@ options:
   --seed RANDOM_SEED    RNG seed to use for any randomization within templates
   -j, --jobs JOBS_COUNT
                         number of parallel jobs (defaults to the number of logical CPU cores)
+  --check               check if files under TARGET_PATH are consistent with their
+                        templates from SOURCE_PATH, make no changes on disk
   -v, --verbose         output processed file paths and their render times to stdout
   --no-color            disable output coloring
 ```

@@ -8,7 +8,10 @@ from enum import Enum
 from sys import stdout, platform as sys_platform
 from io import TextIOWrapper
 
-from . import TemplateVariables, RenderConfig, RenderDirResult, load_vars_from_yaml_files, post_process_vars, render_dir
+from . import (
+    TemplateVariables, RenderConfig, RenderDirResult, load_vars_from_yaml_files, post_process_vars,
+    render_dir, default_render_handler, verification_render_handler
+)
 from .exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
 from .timing import StageRuntimeReporter
 from ._logging import set_color_disabled, print_success, print_warning, print_error
@@ -43,7 +46,8 @@ def _make_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument('--vars', dest='vars_glob', metavar='VARS_YAML_GLOB', type=str, help='YAML file(s) containing template variable definitions')
 
     parser.add_argument(
-        _VARS_PROCESSOR_MODULE_ARG, dest='vars_processor_module_locator', metavar='VARS_PROCESSOR_MODULE', type=str, help='Python file/module to use for variables dictionary post-processing')
+        _VARS_PROCESSOR_MODULE_ARG, dest='vars_processor_module_locator', metavar='VARS_PROCESSOR_MODULE', type=str, help='Python file/module to use for variables dictionary post-processing'
+    )
     parser.add_argument(
         _VARS_PROCESSOR_FUNCTION_ARG, dest='vars_processor_function_name', metavar='VARS_PROCESSOR_FUNCTION', type=str, default=_DEFAULT_VARS_PROCESSOR_FUNCTION_NAME,
         help=f'single-parameter function in VARS_PROCESSOR_MODULE which vars dictionary will be passed to (defaults to {_DEFAULT_VARS_PROCESSOR_FUNCTION_NAME})'
@@ -52,6 +56,11 @@ def _make_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument('--seed', dest='random_seed', metavar='RANDOM_SEED', type=int, help='RNG seed to use for any randomization within templates')
 
     parser.add_argument('-j', '--jobs', dest='jobs_count', metavar='JOBS_COUNT', type=int, help='number of parallel jobs (defaults to the number of logical CPU cores)')
+
+    parser.add_argument(
+        '--check', action='store_const', dest='mode', const=_Mode.VERIFICATION, default=_Mode.WRITING,
+        help='check if files under TARGET_PATH are consistent with their templates from SOURCE_PATH, make no changes on disk'
+    )
 
     parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
     parser.add_argument('--no-color', action='store_true', dest='is_color_disabled', help='disable output coloring')
@@ -62,12 +71,17 @@ def _make_cli_parser() -> argparse.ArgumentParser:
 # Types
 #
 
+class _Mode(Enum):
+    WRITING      = 0
+    VERIFICATION = 1
+
 class _MainExitCode(int, Enum):
     SUCCESS                = 0
     UNKNOWN_ERROR          = 1
     VARS_LOADING_FAILED    = 2
     VARS_PROCESSING_FAILED = 3
     JINJA_RENDER_ERRORS    = 4
+    VERIFICATION_FAILED    = 5
     INTERRUPTED            = _SIGNAL_EXIT_CODE_OFFSET + signal.SIGINT
 
     @staticmethod
@@ -105,7 +119,8 @@ def main():
     if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
 
-    config = _make_render_config_from_args(args)
+    config  = _make_render_config_from_args(args)
+    handler = verification_render_handler if args.mode == _Mode.VERIFICATION else default_render_handler
 
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
@@ -146,7 +161,7 @@ def main():
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
-    result = render_dir(config, vars, progress_listener=stage_time_reporter)
+    result = render_dir(config, vars, render_handler=handler, progress_listener=stage_time_reporter)
     if result.was_interrupted:
         print_warning(f"warning: Interrupted by the user ({result.skipped_count} template{'s' if result.skipped_count != 1 else ''} skipped)")
     if result.errors_count > 0:

@@ -9,7 +9,8 @@ __all__ = [
     "RenderConfig",
     "RenderDirResult",
     "default_render_handler",
-    "render_dir"
+    "render_dir",
+    "verification_render_handler"
 ]
 
 #
@@ -21,3 +22,4 @@ from ._vars import TemplateVariables
 from ._vars.loading import load_vars_from_yaml_files
 from ._vars.post_processing import post_process_vars
 from ._rendering import RenderHandler, RenderConfig, RenderDirResult, default_render_handler, render_dir
+from ._verification import verification_render_handler
