@@ -109,7 +109,7 @@ _vars      = None
 # Interface
 #
 
-def default_render_handler(target_file_path: Path, rendered_content: str) -> None:
+def writing_render_handler(target_file_path: Path, rendered_content: str) -> None:
     target_file_path.parent.mkdir(exist_ok=True, parents=True)
     with open(target_file_path, 'w', encoding=TARGET_ENCODING) as target_file:
         target_file.write(rendered_content)
@@ -117,7 +117,7 @@ def default_render_handler(target_file_path: Path, rendered_content: str) -> Non
 def render_dir(
     config:            RenderConfig,
     vars:              TemplateVariables,
-    render_handler:    RenderHandler    = default_render_handler,
+    render_handler:    RenderHandler    = writing_render_handler,
     progress_listener: ProgressListener = NullProgressListener()
 ) -> RenderDirResult:
     templates_paths = config.source_path.glob(_TEMPLATE_GLOB)

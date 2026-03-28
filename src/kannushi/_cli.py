@@ -10,7 +10,7 @@ from io import TextIOWrapper
 
 from . import (
     TemplateVariables, RenderConfig, RenderDirResult, load_vars_from_yaml_files, post_process_vars,
-    render_dir, default_render_handler, verification_render_handler
+    render_dir, writing_render_handler, verification_render_handler
 )
 from .exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
 from .timing import StageRuntimeReporter
@@ -120,7 +120,7 @@ def main():
         system('color')
 
     config  = _make_render_config_from_args(args)
-    handler = verification_render_handler if args.mode == _Mode.VERIFICATION else default_render_handler
+    handler = verification_render_handler if args.mode == _Mode.VERIFICATION else writing_render_handler
 
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
