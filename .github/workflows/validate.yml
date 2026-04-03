@@ -1,4 +1,4 @@
-name: "Run Static Analysis"
+name: "Static Analysis"
 
 on: [push, pull_request]
 
