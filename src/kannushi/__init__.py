@@ -6,6 +6,7 @@ __all__ = [
     "load_vars_from_yaml_files",
     "post_process_vars",
     "RenderHandler",
+    "RenderResultObserver",
     "RenderConfig",
     "RenderDirResult",
     "writing_render_handler",
@@ -21,5 +22,5 @@ from . import exceptions, extensions, timing
 from ._vars import TemplateVariables
 from ._vars.loading import load_vars_from_yaml_files
 from ._vars.post_processing import post_process_vars
-from ._rendering import RenderHandler, RenderConfig, RenderDirResult, writing_render_handler, render_dir
+from ._rendering import RenderHandler, RenderResultObserver, RenderConfig, RenderDirResult, writing_render_handler, render_dir
 from ._verification import verification_render_handler

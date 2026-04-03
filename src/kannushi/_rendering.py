@@ -39,6 +39,9 @@ _ASYNC_POLLING_INTERVAL_SECONDS = 0.5 # Primarily determines the reaction time t
 class RenderHandler(Protocol):
     def __call__(self, target_file_path: Path, rendered_content: str) -> Any: ...
 
+class RenderResultObserver(Protocol):
+    def __call__(self, target_file_path: Path, render_handler_result: Any): ...
+
 #
 # Interface types
 #
@@ -115,10 +118,11 @@ def writing_render_handler(target_file_path: Path, rendered_content: str) -> Non
         target_file.write(rendered_content)
 
 def render_dir(
-    config:            RenderConfig,
-    vars:              TemplateVariables,
-    render_handler:    RenderHandler    = writing_render_handler,
-    progress_listener: ProgressListener = NullProgressListener()
+    config:                 RenderConfig,
+    vars:                   TemplateVariables,
+    render_handler:         RenderHandler               = writing_render_handler,
+    render_result_observer: RenderResultObserver | None = None,
+    progress_listener:      ProgressListener            = NullProgressListener()
 ) -> RenderDirResult:
     templates_paths = config.source_path.glob(_TEMPLATE_GLOB)
     skipped_paths   = config.source_path.glob(config.skip_glob) if config.skip_glob is not None else []
@@ -141,6 +145,8 @@ def render_dir(
         result.render_handler_results[template_result.target_file_path] = template_result.render_handler_result
         if config.is_verbose:
             print(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
+        if render_result_observer is not None:
+            render_result_observer(template_result.target_file_path, template_result.render_handler_result)
 
     def job_error_callback(template_path: Path, e: BaseException):
         result.failed_template_paths.append(template_path)
