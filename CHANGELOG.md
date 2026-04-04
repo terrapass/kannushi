@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Changed
+
+- Render errors are now also considered verification errors and are included in verification result logging.
+- A warning is now logged instead of the verification summary in case of user interruption.
+- List of render errors at the end of the run now follows the same non-verbose cutoff ("and X more") logic as modified/missing files lists from verification result logs.
+- Minor log wording and formatting changes.
+- `RenderDirResult` now exposes `errors_by_target_file_path` dict (mapping `Path` to `BaseException`) instead of the `failed_template_paths` list.
 
 ## [0.4.1][0.4.1] - 2026-04-04
 
