@@ -152,29 +152,29 @@ def _try_log_verification_result(verification_result: _VerificationResult | None
         return
     summary_str = ', '.join(
         summary_part for summary_part in [
-            f"{verification_result.modified_files_count} modified" if verification_result.modified_files_count > 0 else None,
+            f"{verification_result.modified_files_count} modified/out-of-date" if verification_result.modified_files_count > 0 else None,
             f"{verification_result.missing_files_count} missing"   if verification_result.missing_files_count > 0  else None,
         ] if summary_part is not None
     )
     print_error(
-        f"error: Found {verification_result.total_inconsistencies} inconsistent file{'' if verification_result.total_inconsistencies == 1 else 's'} ({summary_str})\n"
+        f"error: Consistency check failed for {verification_result.total_inconsistencies} file{'' if verification_result.total_inconsistencies == 1 else 's'} ({summary_str})\n"
     )
-    _try_log_inconsistent_file_paths(
+    _try_log_file_list(
         f"contain{'s' if verification_result.modified_files_count == 1 else ''} manual modifications or {'is' if verification_result.modified_files_count == 1 else 'are'} out of date",
         verification_result.modified_file_paths,
         is_verbose
     )
-    _try_log_inconsistent_file_paths(
-        f"{'is' if verification_result.missing_files_count == 1 else 'are'} deleted or missing",
+    _try_log_file_list(
+        f"{'is' if verification_result.missing_files_count == 1 else 'are'} missing",
         verification_result.missing_file_paths,
         is_verbose
     )
 
-def _try_log_inconsistent_file_paths(inconsistency_explanation: str, file_paths: list[Path], is_verbose: bool):
+def _try_log_file_list(explanation: str, file_paths: list[Path], is_verbose: bool):
     file_paths_count = len(file_paths)
     if file_paths_count <= 0:
         return
-    print_error(f"{file_paths_count} file{'' if file_paths_count == 1 else 's'} {inconsistency_explanation}:")
+    print_error(f"error: {file_paths_count} file{'' if file_paths_count == 1 else 's'} {explanation}:")
     for file_path in file_paths[:(file_paths_count if is_verbose else _MAX_FILE_PATHS_LOGGED_NON_VERBOSE)]:
         print_error(str(file_path))
     if not is_verbose and file_paths_count > _MAX_FILE_PATHS_LOGGED_NON_VERBOSE:
@@ -242,12 +242,8 @@ def main():
     if render_result.was_interrupted:
         print_warning(f"warning: Interrupted by the user ({render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped)")
     if render_result.errors_count > 0:
-        if config.is_verbose:
-            failed_target_file_paths_str  = '\n'.join(map(str, render_result.errors_by_target_file_path.keys()))
-            print_error(f"error: The following {render_result.errors_count} file{'s' if render_result.errors_count != 1 else ''} failed to render from templates (see individual errors above):")
-            print_error(failed_target_file_paths_str)
-        else:
-            print_error(f"error: {render_result.errors_count} template{'s' if render_result.errors_count != 1 else ''} failed to render (see individual errors above)")
+        assert len(render_result.errors_by_target_file_path) > 0
+        _try_log_file_list(f"failed to render from template{'' if len(render_result.errors_by_target_file_path) == 1 else 's'}", list(render_result.errors_by_target_file_path.keys()), config.is_verbose)
     elif not render_result.was_interrupted:
         assert render_result.is_successful
         is_verification_failed = verification_result is not None and not verification_result.is_successful
