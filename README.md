@@ -97,7 +97,8 @@ options:
   -j, --jobs JOBS_COUNT
                         number of parallel jobs (defaults to the number of logical CPU cores)
   --check               check if files under TARGET_PATH are consistent with their
-                        templates from SOURCE_PATH, make no changes on disk
+                        templates from SOURCE_PATH, make no changes on disk, exit non-zero if
+                        any inconsistencies are found
   -v, --verbose         output processed file paths and their render times to stdout
   --no-color            disable output coloring
 ```

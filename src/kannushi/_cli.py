@@ -62,7 +62,7 @@ def _make_cli_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         '--check', action='store_const', dest='mode', const=_Mode.VERIFICATION, default=_Mode.WRITING,
-        help='check if files under TARGET_PATH are consistent with their templates from SOURCE_PATH, make no changes on disk'
+        help='check if files under TARGET_PATH are consistent with their templates from SOURCE_PATH, make no changes on disk, exit non-zero if any inconsistencies are found'
     )
 
     parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
