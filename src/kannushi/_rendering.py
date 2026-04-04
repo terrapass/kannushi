@@ -71,15 +71,15 @@ class RenderConfig:
 
 @dataclass
 class RenderDirResult:
-    selected_templates_count: int             = 0
-    rendered_templates_count: int             = 0
-    failed_template_paths:    list[Path]      = field(default_factory=list)
-    was_interrupted:          bool            = False
-    render_handler_results:   dict[Path, Any] = field(default_factory=dict)
+    selected_templates_count:    int                       = 0
+    rendered_templates_count:    int                       = 0
+    errors_by_target_file_path:  dict[Path, BaseException] = field(default_factory=dict)
+    was_interrupted:             bool                      = False
+    render_handler_results:      dict[Path, Any]           = field(default_factory=dict)
 
     @property
     def errors_count(self) -> int:
-        return len(self.failed_template_paths)
+        return len(self.errors_by_target_file_path)
 
     @property
     def skipped_count(self) -> int:
@@ -149,8 +149,9 @@ def render_dir(
             render_result_observer(template_result.target_file_path, template_result.render_handler_result)
 
     def job_error_callback(template_path: Path, e: BaseException):
-        result.failed_template_paths.append(template_path)
         (_, target_file_path) = _convert_template_path(config.source_path, config.target_path, template_path)
+        assert target_file_path not in result.errors_by_target_file_path
+        result.errors_by_target_file_path[target_file_path] = e
         print_error(f'[ERROR] {target_file_path}')
         print_error(f'\terror: {e}')
 

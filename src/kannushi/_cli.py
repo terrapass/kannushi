@@ -243,9 +243,9 @@ def main():
         print_warning(f"warning: Interrupted by the user ({render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped)")
     if render_result.errors_count > 0:
         if config.is_verbose:
-            failed_template_paths_str  = '\n'.join(map(str, render_result.failed_template_paths))
-            print_error(f"error: The following {render_result.errors_count} template{'s' if render_result.errors_count != 1 else ''} failed to render (see individual errors above):")
-            print_error(failed_template_paths_str)
+            failed_target_file_paths_str  = '\n'.join(map(str, render_result.errors_by_target_file_path.keys()))
+            print_error(f"error: The following {render_result.errors_count} file{'s' if render_result.errors_count != 1 else ''} failed to render from templates (see individual errors above):")
+            print_error(failed_target_file_paths_str)
         else:
             print_error(f"error: {render_result.errors_count} template{'s' if render_result.errors_count != 1 else ''} failed to render (see individual errors above)")
     elif not render_result.was_interrupted:
