@@ -144,20 +144,25 @@ def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
         is_color_disabled=args.is_color_disabled,
     )
 
-def _try_log_verification_result(verification_result: _VerificationResult | None, is_verbose: bool):
+def _try_log_verification_result(verification_result: _VerificationResult | None, render_result: RenderDirResult, is_verbose: bool):
     if verification_result is None:
         return
-    if verification_result.is_successful:
+    if render_result.was_interrupted:
+        print_warning("warning: Skipping consistency check due to user interruption")
+        return
+    if verification_result.is_successful and render_result.is_successful:
         print_success("All existing files are consistent with their source templates")
         return
     summary_str = ', '.join(
         summary_part for summary_part in [
             f"{verification_result.modified_files_count} modified/out-of-date" if verification_result.modified_files_count > 0 else None,
-            f"{verification_result.missing_files_count} missing"   if verification_result.missing_files_count > 0  else None,
+            f"{verification_result.missing_files_count} missing"               if verification_result.missing_files_count > 0  else None,
+            f"{render_result.errors_count} failed to render"                   if render_result.errors_count > 0               else None,
         ] if summary_part is not None
     )
+    total_reported_inconsistencies = verification_result.total_inconsistencies + render_result.errors_count
     print_error(
-        f"error: Consistency check failed for {verification_result.total_inconsistencies} file{'' if verification_result.total_inconsistencies == 1 else 's'} ({summary_str})\n"
+        f"error: Consistency check failed for {total_reported_inconsistencies} file{'' if total_reported_inconsistencies == 1 else 's'} ({summary_str})\n"
     )
     _try_log_file_list(
         f"contain{'s' if verification_result.modified_files_count == 1 else ''} manual modifications or {'is' if verification_result.modified_files_count == 1 else 'are'} out of date",
@@ -251,5 +256,5 @@ def main():
             f"All {render_result.rendered_templates_count} templates rendered without errors{' but there are inconsistencies' if is_verification_failed else ''}",
             file=stdout
         )
-    _try_log_verification_result(verification_result, config.is_verbose)
+    _try_log_verification_result(verification_result, render_result, config.is_verbose)
     exit(_MainExitCode.from_results(render_result, verification_result))
