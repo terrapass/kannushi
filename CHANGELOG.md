@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Added
+
+- Support for `--check` CLI argument. In this mode the tool doesn't write anything to disk but simply verifies that target files are consistent with their source templates, i.e. that all of them already exist and none contain "manual" modifications or are otherwise out of date relative to freshly rendered templates; if this is not the case, the tool logs any inconsistencies found to stderr and exits non-zero.
+- Package API now exposes `RenderHandler` and `RenderResultObserver` protocols, `TargetFileStatus` enum, as well as `writing_render_handler`, `verification_render_handler` and `verification_render_handler_result_observer` functions.
 
 ## [0.3.0][0.3.0] - 2026-03-13
 
