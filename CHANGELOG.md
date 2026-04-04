@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Added
+
+- Documented `--check` mode in `README.md`.
+
+### Changed
+
+- Significantly restructured `README.md`, added headings.
 
 ## [0.4.0][0.4.0] - 2026-04-04
 

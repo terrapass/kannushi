@@ -8,20 +8,51 @@
 
 In a nutshell, it takes a directory containing `*.jinja` files and recursively renders those templates into a given target directory, mirroring the folder structure.
 
-For example:
+## Example
+
 ```sh
 kannushi -j8 --vars "config/**/*.yml" src_templates/ src/
 ```
-...will render Jinja template files in 8 parallel jobs (`-j8`) from `src_templates/` into `src/`, based on data from YAML files inside `config/`.\
+This will render Jinja template files in 8 parallel jobs (`-j8`) from `src_templates/` into `src/`, based on data from YAML files inside `config/`.\
 Each rendered file will have the same name as its source template, minus the `.jinja` extension. It will also be placed at the same path relative to `src/` as its source template is relative to `src_templates/`. So, for example `src_templates/some/path/filename.ext.jinja` will be rendered into `src/some/path/filename.ext`.\
 Existing files in `src/` that reside at paths corresponding to templates will be overwritten. All other files in `src/` will be left untouched.
 
 As the above example suggests, extensive template-based code generation is the use case that **kannushi** is primarily geared towards.
 
----
+If needed, the user can also provide custom Python code to pre-process the data dictionary read from `--vars` before it is passed to Jinja for template rendering, or to expose arbitrary Python functions to the template code (see [Input Data Pre-Processing](#input-data-pre-processing)).
 
-Optionally, for cases where using static data from YAML files doesn't quite cut it, custom Python code can also be provided to **kannushi** by means of the `--vars-processor` argument, which can be used either alone or in combination with `--vars`.\
-For example, suppose we have a Python file like this, called `processor.py`, in the directory where `kannushi` is run from:
+It can also be run in read-only verification mode, to confirm if target files are up to date with their source templates and data (see [`--check` Mode](#--check-mode)).
+
+## Installation
+
+Via `pip`:
+```sh
+pip install kannushi
+```
+
+Via `uv`:
+```sh
+uv tool install kannushi
+```
+
+## Additional CLI Features
+
+Expanding on the basic example above, let's look at some of **kannushi**'s other features.
+
+### `--check` Mode
+
+**kannushi** can be run in read-only verification mode by adding `--check` to its command line arguments.
+```sh
+kannushi -j8 --check --vars "config/**/*.yml" src_templates/ src/
+```
+In this mode the tool doesn't write anything to disk but simply verifies that target files are consistent with their source templates, i.e. that all of them already exist and none contain "manual" modifications or are otherwise out of date, relative to freshly rendered templates. If this is not the case, the tool logs any inconsistencies found to stderr and exits non-zero.
+
+This mode is primarily useful in scenarios where rendered files are themselves kept under version control. In such cases `--check` provides a non-destructive way for the user (be it an individual, a version control hook, or an automated CI script) to determine if any of the rendered files have been manually modified or deleted.
+
+### Input Data Pre-Processing
+
+For cases where using static data from YAML files doesn't quite cut it, custom Python code can also be provided to **kannushi** by means of the `--vars-processor` argument, which can be used either alone or in combination with `--vars` and/or `--check`.\
+For example, suppose we have a Python file like this, called `processor.py` in the current working directory:
 ```py
 # processor.py
 import math
@@ -54,18 +85,6 @@ In this case the dictionary of input data will be read from YAML files under `co
 As seen in the `process_vars()` code example above, besides calculating some template variables on the fly, this mechanism can also be used to expose custom Python functions to the Jinja code in the rendered templates.
 
 It's also possible to use `--vars-processor` alone, without `--vars`, provided the script's code doesn't rely on data loaded from YAML. In that case the dictionary passed as argument to `process_vars()` will start off empty and can be populated entirely by Python code.
-
-## Installation
-
-Via `pip`:
-```sh
-pip install kannushi
-```
-
-Via `uv`:
-```sh
-uv tool install kannushi
-```
 
 ## Synopsis
 ```
