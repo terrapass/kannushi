@@ -178,7 +178,7 @@ def _try_log_inconsistent_file_paths(inconsistency_explanation: str, file_paths:
     for file_path in file_paths[:(file_paths_count if is_verbose else _MAX_FILE_PATHS_LOGGED_NON_VERBOSE)]:
         print_error(str(file_path))
     if not is_verbose and file_paths_count > _MAX_FILE_PATHS_LOGGED_NON_VERBOSE:
-        print_error(f"# (and {file_paths_count - _MAX_FILE_PATHS_LOGGED_NON_VERBOSE} more; re-run with --verbose for the full list)")
+        print_error(f"# ...and {file_paths_count - _MAX_FILE_PATHS_LOGGED_NON_VERBOSE} more; re-run with --verbose for the full list")
     print_error("")
 
 #
