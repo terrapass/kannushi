@@ -11,7 +11,9 @@ __all__ = [
     "RenderDirResult",
     "writing_render_handler",
     "render_dir",
-    "verification_render_handler"
+    "TargetFileStatus",
+    "verification_render_handler",
+    "verification_render_result_observer"
 ]
 
 #
@@ -23,4 +25,4 @@ from ._vars import TemplateVariables
 from ._vars.loading import load_vars_from_yaml_files
 from ._vars.post_processing import post_process_vars
 from ._rendering import RenderHandler, RenderResultObserver, RenderConfig, RenderDirResult, writing_render_handler, render_dir
-from ._verification import verification_render_handler
+from ._verification import TargetFileStatus, verification_render_handler, verification_render_result_observer

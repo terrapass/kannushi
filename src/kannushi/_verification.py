@@ -4,6 +4,7 @@ from io import StringIO
 from itertools import zip_longest
 
 from._rendering import TARGET_ENCODING
+from._logging import print_warning
 
 #
 # Types
@@ -25,3 +26,9 @@ def verification_render_handler(target_file_path: Path, rendered_content: str) -
         open(target_file_path, 'r', encoding=TARGET_ENCODING) as target_file:
         is_target_file_current = all(map(lambda line_pair: line_pair[0] == line_pair[1], zip_longest(rendered_content_stream, target_file)))
     return TargetFileStatus.CURRENT if is_target_file_current else TargetFileStatus.MODIFIED
+
+def verification_render_result_observer(target_file_path: Path, render_handler_result: TargetFileStatus):
+    if render_handler_result == TargetFileStatus.MODIFIED:
+        print_warning(f"\twarning: {target_file_path} contains manual modifications or is out of date")
+    elif render_handler_result == TargetFileStatus.MISSING:
+        print_warning(f"\twarning: {target_file_path} is missing")

@@ -5,12 +5,13 @@ import signal
 from pathlib import Path
 from os import system
 from enum import Enum
+from dataclasses import dataclass
 from sys import stdout, platform as sys_platform
 from io import TextIOWrapper
 
 from . import (
-    TemplateVariables, RenderConfig, RenderDirResult, load_vars_from_yaml_files, post_process_vars,
-    render_dir, writing_render_handler, verification_render_handler
+    TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, post_process_vars,
+    render_dir, writing_render_handler, verification_render_handler, verification_render_result_observer
 )
 from .exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
 from .timing import StageRuntimeReporter
@@ -31,6 +32,8 @@ _VARS_PROCESSOR_FUNCTION_ARG = '--vars-processor-func'
 _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME = 'process_vars'
 
 _SIGNAL_EXIT_CODE_OFFSET = 128
+
+_MAX_FILE_PATHS_LOGGED_NON_VERBOSE = 5
 
 #
 # Command line arguments
@@ -75,6 +78,38 @@ class _Mode(Enum):
     WRITING      = 0
     VERIFICATION = 1
 
+@dataclass
+class _VerificationResult:
+    modified_file_paths: list[Path]
+    missing_file_paths:  list[Path]
+
+    @staticmethod
+    def from_render_handler_results(verification_render_handler_results: dict[Path, TargetFileStatus]) -> "_VerificationResult":
+        modified_file_paths = []
+        missing_file_paths  = []
+        for file_path, file_status in verification_render_handler_results.items():
+            if file_status == TargetFileStatus.MODIFIED:
+                modified_file_paths.append(file_path)
+            elif file_status == TargetFileStatus.MISSING:
+                missing_file_paths.append(file_path)
+        return _VerificationResult(modified_file_paths, missing_file_paths)
+
+    @property
+    def modified_files_count(self) -> int:
+        return len(self.modified_file_paths)
+
+    @property
+    def missing_files_count(self) -> int:
+        return len(self.missing_file_paths)
+
+    @property
+    def total_inconsistencies(self) -> int:
+        return self.modified_files_count + self.missing_files_count
+
+    @property
+    def is_successful(self) -> bool:
+        return self.total_inconsistencies <= 0
+
 class _MainExitCode(int, Enum):
     SUCCESS                = 0
     UNKNOWN_ERROR          = 1
@@ -85,11 +120,13 @@ class _MainExitCode(int, Enum):
     INTERRUPTED            = _SIGNAL_EXIT_CODE_OFFSET + signal.SIGINT
 
     @staticmethod
-    def from_render_dir_result(render_dir_result: RenderDirResult) -> "_MainExitCode":
+    def from_results(render_dir_result: RenderDirResult, verification_result: _VerificationResult | None) -> "_MainExitCode":
         if render_dir_result.was_interrupted:
             return _MainExitCode.INTERRUPTED
         if render_dir_result.errors_count > 0:
             return _MainExitCode.JINJA_RENDER_ERRORS
+        if verification_result is not None and not verification_result.is_successful:
+            return _MainExitCode.VERIFICATION_FAILED
         return _MainExitCode.SUCCESS
 
 #
@@ -107,6 +144,43 @@ def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
         is_color_disabled=args.is_color_disabled,
     )
 
+def _try_log_verification_result(verification_result: _VerificationResult | None, is_verbose: bool):
+    if verification_result is None:
+        return
+    if verification_result.is_successful:
+        print_success("All existing files are consistent with their source templates")
+        return
+    summary_str = ', '.join(
+        summary_part for summary_part in [
+            f"{verification_result.modified_files_count} modified" if verification_result.modified_files_count > 0 else None,
+            f"{verification_result.missing_files_count} missing"   if verification_result.missing_files_count > 0  else None,
+        ] if summary_part is not None
+    )
+    print_error(
+        f"error: Found {verification_result.total_inconsistencies} inconsistent file{'' if verification_result.total_inconsistencies == 1 else 's'} ({summary_str})\n"
+    )
+    _try_log_inconsistent_file_paths(
+        f"contain{'s' if verification_result.modified_files_count == 1 else ''} manual modifications or {'is' if verification_result.modified_files_count == 1 else 'are'} out of date",
+        verification_result.modified_file_paths,
+        is_verbose
+    )
+    _try_log_inconsistent_file_paths(
+        f"{'is' if verification_result.missing_files_count == 1 else 'are'} deleted or missing",
+        verification_result.missing_file_paths,
+        is_verbose
+    )
+
+def _try_log_inconsistent_file_paths(inconsistency_explanation: str, file_paths: list[Path], is_verbose: bool):
+    file_paths_count = len(file_paths)
+    if file_paths_count <= 0:
+        return
+    print_error(f"{file_paths_count} file{'' if file_paths_count == 1 else 's'} {inconsistency_explanation}:")
+    for file_path in file_paths[:(file_paths_count if is_verbose else _MAX_FILE_PATHS_LOGGED_NON_VERBOSE)]:
+        print_error(str(file_path))
+    if not is_verbose and file_paths_count > _MAX_FILE_PATHS_LOGGED_NON_VERBOSE:
+        print_error(f"# (and {file_paths_count - _MAX_FILE_PATHS_LOGGED_NON_VERBOSE} more; re-run with --verbose for the full list)")
+    print_error("")
+
 #
 # Main
 #
@@ -120,7 +194,9 @@ def main():
         system('color')
 
     config  = _make_render_config_from_args(args)
-    handler = verification_render_handler if args.mode == _Mode.VERIFICATION else writing_render_handler
+
+    render_handler         = verification_render_handler         if args.mode == _Mode.VERIFICATION else writing_render_handler
+    render_result_observer = verification_render_result_observer if args.mode == _Mode.VERIFICATION and config.is_verbose else None
 
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
@@ -161,17 +237,23 @@ def main():
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
-    result = render_dir(config, vars, render_handler=handler, progress_listener=stage_time_reporter)
-    if result.was_interrupted:
-        print_warning(f"warning: Interrupted by the user ({result.skipped_count} template{'s' if result.skipped_count != 1 else ''} skipped)")
-    if result.errors_count > 0:
+    render_result       = render_dir(config, vars, render_handler, render_result_observer, progress_listener=stage_time_reporter)
+    verification_result = _VerificationResult.from_render_handler_results(render_result.render_handler_results) if args.mode == _Mode.VERIFICATION else None
+    if render_result.was_interrupted:
+        print_warning(f"warning: Interrupted by the user ({render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped)")
+    if render_result.errors_count > 0:
         if config.is_verbose:
-            failed_template_paths_str  = '\n'.join(map(str, result.failed_template_paths))
-            print_error(f"error: The following {result.errors_count} template{'s' if result.errors_count != 1 else ''} failed to render (see individual errors above):")
+            failed_template_paths_str  = '\n'.join(map(str, render_result.failed_template_paths))
+            print_error(f"error: The following {render_result.errors_count} template{'s' if render_result.errors_count != 1 else ''} failed to render (see individual errors above):")
             print_error(failed_template_paths_str)
         else:
-            print_error(f"error: {result.errors_count} template{'s' if result.errors_count != 1 else ''} failed to render (see individual errors above)")
-    elif not result.was_interrupted:
-        assert result.is_successful
-        print_success(f"All {result.rendered_templates_count} templates rendered without errors")
-    exit(_MainExitCode.from_render_dir_result(result))
+            print_error(f"error: {render_result.errors_count} template{'s' if render_result.errors_count != 1 else ''} failed to render (see individual errors above)")
+    elif not render_result.was_interrupted:
+        assert render_result.is_successful
+        is_verification_failed = verification_result is not None and not verification_result.is_successful
+        (print_warning if is_verification_failed else print_success)(
+            f"All {render_result.rendered_templates_count} templates rendered without errors{' but there are inconsistencies' if is_verification_failed else ''}",
+            file=stdout
+        )
+    _try_log_verification_result(verification_result, config.is_verbose)
+    exit(_MainExitCode.from_results(render_result, verification_result))
