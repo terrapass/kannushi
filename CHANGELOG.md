@@ -5,12 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased][unreleased]
+<!-- ## [Unreleased][unreleased] -->
+
+## [0.5.0][0.5.0] - 2026-04-04
 
 ### Changed
 
-- Render errors are now also considered verification errors and are included in verification result logging.
-- A warning is now logged instead of the verification summary in case of user interruption.
+- Render errors in `--check` mode are now also considered verification errors and are included in verification result logging.
+- A warning is now logged instead of the verification summary in case of user interruption in `--check` mode.
 - List of render errors at the end of the run now follows the same non-verbose cutoff ("and X more") logic as modified/missing files lists from verification result logs.
 - Minor log wording and formatting changes.
 - `RenderDirResult` now exposes `errors_by_target_file_path` dict (mapping `Path` to `BaseException`) instead of the `failed_template_paths` list.
@@ -114,7 +116,8 @@ Initial public release of **kannushi** - a command line utility for batch render
 - [`{% do %}` expression statements](https://jinja.palletsprojects.com/en/stable/extensions/#expression-statement) are supported in templates by means of the standard `jinja2.ext.do` Jinja2 extension.
 - [`jinja2-error`](https://pypi.org/project/jinja2-error/) extension is integrated to allow for use of the `{% error %}` Jinja tag to raise errors from template code.
 
-[unreleased]: https://github.com/terrapass/kannushi/compare/v0.4.1...HEAD
+[unreleased]: https://github.com/terrapass/kannushi/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/terrapass/kannushi/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/terrapass/kannushi/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/terrapass/kannushi/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/terrapass/kannushi/compare/v0.2.1...v0.3.0
