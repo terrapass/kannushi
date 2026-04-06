@@ -10,6 +10,8 @@ from typing import NoReturn
 from sys import stdout, platform as sys_platform
 from io import TextIOWrapper
 
+import yaml
+
 from . import (
     TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, post_process_vars,
     render_dir, writing_render_handler, verification_render_handler, verification_render_result_observer
@@ -161,7 +163,8 @@ class _MainContext:
 
     @staticmethod
     def __write_yaml_log_impl(log_yaml_path: Path, log_dict: dict):
-        raise NotImplementedError("logging to YAML not yet implemented") # TODO
+        with open(log_yaml_path, 'w') as log_yaml_file:
+            yaml.dump(log_dict, log_yaml_file)
 
     def __to_log_dict(self) -> dict:
         return {
