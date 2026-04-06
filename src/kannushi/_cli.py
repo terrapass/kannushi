@@ -6,6 +6,7 @@ from pathlib import Path
 from os import system
 from enum import Enum
 from dataclasses import dataclass
+from typing import NoReturn
 from sys import stdout, platform as sys_platform
 from io import TextIOWrapper
 
@@ -64,6 +65,8 @@ def _make_cli_parser() -> argparse.ArgumentParser:
         '--check', action='store_const', dest='mode', const=_Mode.VERIFICATION, default=_Mode.WRITING,
         help='check if files under TARGET_PATH are consistent with their templates from SOURCE_PATH, make no changes on disk, exit non-zero if any inconsistencies are found'
     )
+
+    parser.add_argument('--log', dest='log_yaml_path', metavar='LOG_YAML_PATH', type=Path, help='output log file path (logs written as YAML)')
 
     parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
     parser.add_argument('--no-color', action='store_true', dest='is_color_disabled', help='disable output coloring')
@@ -128,6 +131,43 @@ class _MainExitCode(int, Enum):
         if verification_result is not None and not verification_result.is_successful:
             return _MainExitCode.VERIFICATION_FAILED
         return _MainExitCode.SUCCESS
+
+    def to_log_str(self) -> str:
+        return self.name.lower()
+
+class _MainContext:
+    def __init__(self, log_yaml_path: Path | None, is_verbose: bool):
+        # TODO
+        # self.__vars_loading_exception:    BaseException | None       = None
+        # self.__vars_processing_exception: BaseException | None       = None
+        # self.__render_result:             RenderDirResult | None     = None
+        # self.__verification_result:       _VerificationResult | None = None
+        # END TODO
+        self.__exit_code:                 _MainExitCode              = _MainExitCode.UNKNOWN_ERROR
+        if log_yaml_path is not None:
+            atexit.register(self.__write_yaml_log, log_yaml_path, is_verbose)
+
+    def exit_with_code(self, exit_code: _MainExitCode) -> NoReturn:
+        self.__exit_code = exit_code
+        exit(exit_code)
+
+    def __write_yaml_log(self, log_yaml_path: Path, is_verbose: bool):
+        if is_verbose:
+            print(f"Writing log as YAML to {log_yaml_path}...")
+        try:
+            _MainContext.__write_yaml_log_impl(log_yaml_path, self.__to_log_dict())
+        except BaseException as e:
+            print_warning(f"warning: Failed to write log to {log_yaml_path} ({e})")
+
+    @staticmethod
+    def __write_yaml_log_impl(log_yaml_path: Path, log_dict: dict):
+        raise NotImplementedError("logging to YAML not yet implemented") # TODO
+
+    def __to_log_dict(self) -> dict:
+        return {
+            "result": self.__exit_code.to_log_str(),
+            # TODO: More
+        }
 
 #
 # Service
@@ -198,6 +238,7 @@ def main():
     if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
 
+    context = _MainContext(args.log_yaml_path, args.is_verbose)
     config  = _make_render_config_from_args(args)
 
     render_handler         = verification_render_handler         if args.mode == _Mode.VERIFICATION else writing_render_handler
@@ -213,32 +254,32 @@ def main():
         vars = load_vars_from_yaml_files(args.vars_glob, config.effective_jobs_count, stage_time_reporter) if args.vars_glob is not None else TemplateVariables()
     except KeyboardInterrupt:
         print_warning('warning: Interrupted by the user')
-        exit(_MainExitCode.INTERRUPTED)
+        context.exit_with_code(_MainExitCode.INTERRUPTED)
     except BaseException as e:
         print_error('\n'.join(traceback.format_exception_only(e)))
-        exit(_MainExitCode.VARS_LOADING_FAILED)
+        context.exit_with_code(_MainExitCode.VARS_LOADING_FAILED)
 
     if args.vars_processor_module_locator is not None:
         try:
             post_process_vars(vars, args.vars_processor_module_locator, args.vars_processor_function_name, stage_time_reporter)
         except KeyboardInterrupt:
             print_warning('warning: Interrupted by the user')
-            exit(_MainExitCode.INTERRUPTED)
+            context.exit_with_code(_MainExitCode.INTERRUPTED)
         except ModuleExecutionException as e:
             print_error('\n'.join(traceback.format_exception(e.original_exception)))
             print_error(f"error: Failed to load module {args.vars_processor_module_locator} due to the exception above")
-            exit(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
         except ImportError as e:
             print_error(f"error: {e}")
             print(f'hint: make sure a valid Python module name or .py file path is given via {_VARS_PROCESSOR_MODULE_ARG}')
-            exit(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
         except InvalidVarsProcessorInterface as e:
             print_error(f"error: {e}")
-            exit(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
         except BaseException as e:
             print_error('\n'.join(traceback.format_exception(e)))
             print_error(f"error: Failed to process variables using {args.vars_processor_module_locator} due to the exception above")
-            exit(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
@@ -257,4 +298,4 @@ def main():
             file=stdout
         )
     _try_log_verification_result(verification_result, render_result, config.is_verbose)
-    exit(_MainExitCode.from_results(render_result, verification_result))
+    context.exit_with_code(_MainExitCode.from_results(render_result, verification_result))
