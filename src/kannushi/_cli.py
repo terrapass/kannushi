@@ -139,19 +139,27 @@ class _MainExitCode(int, Enum):
 
 class _MainContext:
     def __init__(self, log_yaml_path: Path | None, is_verbose: bool):
-        # TODO
-        # self.__vars_loading_exception:    BaseException | None       = None
-        # self.__vars_processing_exception: BaseException | None       = None
-        # self.__render_result:             RenderDirResult | None     = None
-        # self.__verification_result:       _VerificationResult | None = None
-        # END TODO
-        self.__exit_code:                 _MainExitCode              = _MainExitCode.UNKNOWN_ERROR
+        self.__vars_loading_error:    str | None = None
+        self.__vars_processing_error: str | None = None
         if log_yaml_path is not None:
             atexit.register(self.__write_yaml_log, log_yaml_path, is_verbose)
+
+    def on_vars_loading_error(self, error: str) -> NoReturn:
+        self.__vars_loading_error = error
+        print_error(error)
+        self.exit_with_code(_MainExitCode.VARS_LOADING_FAILED)
+
+    def on_vars_processing_error(self, error: str, hint: str | None = None) -> NoReturn:
+        self.__vars_processing_error = error
+        print_error(error)
+        if hint is not None:
+            print(hint)
+        self.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
 
     def exit_with_code(self, exit_code: _MainExitCode) -> NoReturn:
         self.__exit_code = exit_code
         exit(exit_code)
+
 
     def __write_yaml_log(self, log_yaml_path: Path, is_verbose: bool):
         if is_verbose:
@@ -168,9 +176,18 @@ class _MainContext:
 
     def __to_log_dict(self) -> dict:
         return {
-            "result": self.__exit_code.to_log_str(),
-            # TODO: More
+            "result":                self.__exit_code.to_log_str(),
+            "vars_loading_error":    self.__vars_loading_error,
+            "vars_processing_error": self.__vars_processing_error,
+            "render":                self.__render_result_to_log_dict(),
+            "verification":          self.__verification_result_to_log_dict(),
         }
+
+    def __render_result_to_log_dict(self) -> dict | None:
+        raise NotImplementedError
+
+    def __verification_result_to_log_dict(self) -> dict | None:
+        raise NotImplementedError
 
 #
 # Service
@@ -259,8 +276,7 @@ def main():
         print_warning('warning: Interrupted by the user')
         context.exit_with_code(_MainExitCode.INTERRUPTED)
     except BaseException as e:
-        print_error('\n'.join(traceback.format_exception_only(e)))
-        context.exit_with_code(_MainExitCode.VARS_LOADING_FAILED)
+        context.on_vars_loading_error('\n'.join(traceback.format_exception_only(e)))
 
     if args.vars_processor_module_locator is not None:
         try:
@@ -269,20 +285,23 @@ def main():
             print_warning('warning: Interrupted by the user')
             context.exit_with_code(_MainExitCode.INTERRUPTED)
         except ModuleExecutionException as e:
-            print_error('\n'.join(traceback.format_exception(e.original_exception)))
-            print_error(f"error: Failed to load module {args.vars_processor_module_locator} due to the exception above")
-            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.on_vars_processing_error(
+                '\n'.join([
+                    '\n'.join(traceback.format_exception(e.original_exception)),
+                    f"error: Failed to load module {args.vars_processor_module_locator} due to the exception above",
+                ])
+            )
         except ImportError as e:
-            print_error(f"error: {e}")
-            print(f'hint: make sure a valid Python module name or .py file path is given via {_VARS_PROCESSOR_MODULE_ARG}')
-            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.on_vars_processing_error(f"error: {e}", f'hint: make sure a valid Python module name or .py file path is given via {_VARS_PROCESSOR_MODULE_ARG}')
         except InvalidVarsProcessorInterface as e:
-            print_error(f"error: {e}")
-            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.on_vars_processing_error(f"error: {e}")
         except BaseException as e:
-            print_error('\n'.join(traceback.format_exception(e)))
-            print_error(f"error: Failed to process variables using {args.vars_processor_module_locator} due to the exception above")
-            context.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
+            context.on_vars_processing_error(
+                '\n'.join([
+                    '\n'.join(traceback.format_exception(e)),
+                    f"error: Failed to process variables using {args.vars_processor_module_locator} due to the exception above",
+                ])
+            )
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
