@@ -191,12 +191,23 @@ class _MainContext:
             "result":                self.__exit_code.to_log_str(),
             "vars_loading_error":    self.__vars_loading_error,
             "vars_processing_error": self.__vars_processing_error,
-            "render":                self.__render_result_to_log_dict(),
+            "render":                self.__render_dir_result_to_log_dict(),
             "verification":          self.__verification_result_to_log_dict(),
         }
 
-    def __render_result_to_log_dict(self) -> dict | None:
-        raise NotImplementedError
+    def __render_dir_result_to_log_dict(self) -> dict | None:
+        if self.__render_dir_result is None:
+            return None
+        return {
+            "is_successful":            self.__render_dir_result.is_successful,
+            "selected_templates_count": self.__render_dir_result.selected_templates_count,
+            "rendered_templates_count": self.__render_dir_result.rendered_templates_count,
+            "skipped_count":            self.__render_dir_result.skipped_count,
+            "errors_count":             self.__render_dir_result.errors_count,
+            "render_errors": [
+                {"path": str(path), "error": str(error)} for path, error in self.__render_dir_result.errors_by_target_file_path.items()
+            ]
+        }
 
     def __verification_result_to_log_dict(self) -> dict | None:
         raise NotImplementedError
