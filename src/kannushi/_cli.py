@@ -144,6 +144,11 @@ class _MainContext:
         if log_yaml_path is not None:
             atexit.register(self.__write_yaml_log, log_yaml_path, is_verbose)
 
+    def on_user_interruption(self, added_note: str | None = None) -> NoReturn:
+        atexit.unregister(self.__write_yaml_log)
+        print_warning(f"warning: Interrupted by the user{f' ({added_note})' if added_note is not None else ''}")
+        self.exit_with_code(_MainExitCode.INTERRUPTED)
+
     def on_vars_loading_error(self, error: str) -> NoReturn:
         self.__vars_loading_error = error
         print_error(error)
@@ -160,8 +165,8 @@ class _MainContext:
         self.__exit_code = exit_code
         exit(exit_code)
 
-
     def __write_yaml_log(self, log_yaml_path: Path, is_verbose: bool):
+        assert self.__exit_code != _MainExitCode.INTERRUPTED
         if is_verbose:
             print(f"Writing log as YAML to {log_yaml_path}...")
         try:
@@ -205,10 +210,8 @@ def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
     )
 
 def _try_log_verification_result(verification_result: _VerificationResult | None, render_result: RenderDirResult, is_verbose: bool):
+    assert not render_result.was_interrupted
     if verification_result is None:
-        return
-    if render_result.was_interrupted:
-        print_warning("warning: Skipping consistency check due to user interruption")
         return
     if verification_result.is_successful and render_result.is_successful:
         print_success("All existing files are consistent with their source templates")
@@ -273,8 +276,7 @@ def main():
     try:
         vars = load_vars_from_yaml_files(args.vars_glob, config.effective_jobs_count, stage_time_reporter) if args.vars_glob is not None else TemplateVariables()
     except KeyboardInterrupt:
-        print_warning('warning: Interrupted by the user')
-        context.exit_with_code(_MainExitCode.INTERRUPTED)
+        context.on_user_interruption()
     except BaseException as e:
         context.on_vars_loading_error('\n'.join(traceback.format_exception_only(e)))
 
@@ -282,8 +284,7 @@ def main():
         try:
             post_process_vars(vars, args.vars_processor_module_locator, args.vars_processor_function_name, stage_time_reporter)
         except KeyboardInterrupt:
-            print_warning('warning: Interrupted by the user')
-            context.exit_with_code(_MainExitCode.INTERRUPTED)
+            context.on_user_interruption()
         except ModuleExecutionException as e:
             context.on_vars_processing_error(
                 '\n'.join([
@@ -308,7 +309,7 @@ def main():
     render_result       = render_dir(config, vars, render_handler, render_result_observer, progress_listener=stage_time_reporter)
     verification_result = _VerificationResult.from_render_handler_results(render_result.render_handler_results) if args.mode == _Mode.VERIFICATION else None
     if render_result.was_interrupted:
-        print_warning(f"warning: Interrupted by the user ({render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped)")
+        context.on_user_interruption(f"{render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped")
     if render_result.errors_count > 0:
         assert len(render_result.errors_by_target_file_path) > 0
         _try_log_file_list(f"failed to render from template{'' if len(render_result.errors_by_target_file_path) == 1 else 's'}", list(render_result.errors_by_target_file_path.keys()), config.is_verbose)
