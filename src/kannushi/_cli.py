@@ -139,29 +139,36 @@ class _MainExitCode(int, Enum):
 
 class _MainContext:
     def __init__(self, log_yaml_path: Path | None, is_verbose: bool):
-        self.__vars_loading_error:    str | None = None
-        self.__vars_processing_error: str | None = None
+        self.__vars_loading_error:    str | None                 = None
+        self.__vars_processing_error: str | None                 = None
+        self.__render_dir_result:     RenderDirResult | None     = None
+        self.__verification_result:   _VerificationResult | None = None
         if log_yaml_path is not None:
             atexit.register(self.__write_yaml_log, log_yaml_path, is_verbose)
 
     def on_user_interruption(self, added_note: str | None = None) -> NoReturn:
         atexit.unregister(self.__write_yaml_log)
         print_warning(f"warning: Interrupted by the user{f' ({added_note})' if added_note is not None else ''}")
-        self.exit_with_code(_MainExitCode.INTERRUPTED)
+        self.__exit_with_code(_MainExitCode.INTERRUPTED)
 
     def on_vars_loading_error(self, error: str) -> NoReturn:
         self.__vars_loading_error = error
         print_error(error)
-        self.exit_with_code(_MainExitCode.VARS_LOADING_FAILED)
+        self.__exit_with_code(_MainExitCode.VARS_LOADING_FAILED)
 
     def on_vars_processing_error(self, error: str, hint: str | None = None) -> NoReturn:
         self.__vars_processing_error = error
         print_error(error)
         if hint is not None:
             print(hint)
-        self.exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
+        self.__exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
 
-    def exit_with_code(self, exit_code: _MainExitCode) -> NoReturn:
+    def finish_with_results(self, render_dir_result: RenderDirResult, verification_result: _VerificationResult | None) -> NoReturn:
+        self.__render_dir_result   = render_dir_result
+        self.__verification_result = verification_result
+        self.__exit_with_code(_MainExitCode.from_results(self.__render_dir_result, self.__verification_result))
+
+    def __exit_with_code(self, exit_code: _MainExitCode) -> NoReturn:
         self.__exit_code = exit_code
         exit(exit_code)
 
@@ -321,4 +328,4 @@ def main():
             file=stdout
         )
     _try_log_verification_result(verification_result, render_result, config.is_verbose)
-    context.exit_with_code(_MainExitCode.from_results(render_result, verification_result))
+    context.finish_with_results(render_result, verification_result)
