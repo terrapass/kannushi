@@ -6,7 +6,7 @@ from pathlib import Path
 from os import system
 from enum import Enum
 from dataclasses import dataclass
-from typing import NoReturn
+from typing import Any, NoReturn
 from sys import stdout, platform as sys_platform
 from io import TextIOWrapper
 
@@ -210,7 +210,18 @@ class _MainContext:
         }
 
     def __verification_result_to_log_dict(self) -> dict | None:
-        raise NotImplementedError
+        if self.__verification_result is None:
+            return None
+        def to_str_list(any_list: list[Any]) -> list[str]:
+            return list(map(lambda value: str(value), any_list))
+        return {
+            "is_successful":         self.__verification_result.is_successful,
+            "total_inconsistencies": self.__verification_result.total_inconsistencies,
+            "modified_files_count":  self.__verification_result.modified_files_count,
+            "missing_files_count":   self.__verification_result.missing_files_count,
+            "modified_file_paths":   to_str_list(self.__verification_result.modified_file_paths),
+            "missing_file_paths":    to_str_list(self.__verification_result.missing_file_paths),
+        }
 
 #
 # Service
