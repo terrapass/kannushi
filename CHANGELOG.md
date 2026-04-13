@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Added
+
+- Support for `--log` CLI argument. If given, the tool, when exiting, will output a YAML log file at the path specified as the argument's value. The log will contain errors (if any) from the vars loading and processing steps, as well as render and render errors summmary and, in the presence of `--check`, verification results. The file is not written, if the run gets interrupted by the user (via `SIGINT`/Ctrl-C). If writing of the log fails for any reason, a warning will be written to stderr, but the application's exit code will remain unchanged.
 
 ## [0.5.0][0.5.0] - 2026-04-04
 
