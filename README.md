@@ -49,6 +49,17 @@ In this mode the tool doesn't write anything to disk but simply verifies that ta
 
 This mode is primarily useful in scenarios where rendered files are themselves kept under version control. In such cases `--check` provides a non-destructive way for the user (be it an individual, a version control hook, or an automated CI script) to determine if any of the rendered files have been manually modified or deleted.
 
+### YAML Logs and Unified Diff
+
+Likewise mostly useful in a CI context, `--log` and `--diff` arguments can be used to output additional data, suitable for subsequent processing by other scripts or tools. These are most often used in `--check` mode, but either or both of them can also be specified independently.
+```sh
+kannushi -j8 --check --log report.yml --diff changes.patch --vars "config/**/*.yml" src_templates/ src/
+```
+
+`--log` will write a YAML log file to the given path at the end of the tool's run. It captures any errors from the variable loading and processing steps, a summary of the render (including per-template render errors, if any), and — in the presence of `--check` — the verification results, i.e. which target files were found to be modified or missing.
+
+`--diff` stores a unified diff between the current versions of target files as they exist(ed) on disk prior to the run and their newly rendered content.
+
 ### Input Data Pre-Processing
 
 For cases where using static data from YAML files doesn't quite cut it, custom Python code can also be provided to **kannushi** by means of the `--vars-processor` argument, which can be used either alone or in combination with `--vars` and/or `--check`.\
