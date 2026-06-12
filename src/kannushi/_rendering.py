@@ -3,7 +3,7 @@ import signal
 from pathlib import Path
 from os import path, cpu_count
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol, cast
+from typing import Any, Callable, Protocol, Sequence, cast
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
 from functools import cached_property, partial
@@ -37,7 +37,7 @@ _ASYNC_POLLING_INTERVAL_SECONDS = 0.5 # Primarily determines the reaction time t
 #
 
 class RenderHandler(Protocol):
-    def __call__(self, target_file_path: Path, rendered_content: str) -> Any: ...
+    def __call__(self, context: "RenderTemplateContext") -> Any: ...
 
 class RenderResultObserver(Protocol):
     def __call__(self, target_file_path: Path, render_handler_result: Any): ...
@@ -45,6 +45,23 @@ class RenderResultObserver(Protocol):
 #
 # Interface types
 #
+
+@dataclass
+class RenderTemplateContext:
+    template_path:    Path
+    target_dir_path:  Path
+    target_file_path: Path
+    rendered_content: str
+
+    @property
+    def target_file_relative_path(self) -> str:
+        return _replace_backslashes(path.relpath(self.target_file_path, self.target_dir_path))
+
+    @cached_property
+    def target_current_content(self) -> str | None:
+        if not self.target_file_path.is_file():
+            return None
+        return self.target_file_path.read_text(encoding=TARGET_ENCODING)
 
 @dataclass
 class RenderConfig:
@@ -75,7 +92,6 @@ class RenderDirResult:
     rendered_templates_count:    int                       = 0
     errors_by_target_file_path:  dict[Path, BaseException] = field(default_factory=dict)
     was_interrupted:             bool                      = False
-    render_handler_results:      dict[Path, Any]           = field(default_factory=dict)
 
     @property
     def errors_count(self) -> int:
@@ -101,6 +117,14 @@ class _RenderTemplateResult:
     render_time_seconds:   float
     render_handler_result: Any = None
 
+class _CompositeRenderHandler:
+    # A picklable (unlike a closure) callable, since the handler is sent to worker processes.
+    def __init__(self, handlers: Sequence[RenderHandler]):
+        self.__handlers = list(handlers)
+
+    def __call__(self, context: RenderTemplateContext) -> tuple[Any, ...]:
+        return tuple(handler(context) for handler in self.__handlers)
+
 #
 # Globals
 #
@@ -112,10 +136,28 @@ _vars      = None
 # Interface
 #
 
-def writing_render_handler(target_file_path: Path, rendered_content: str) -> None:
-    target_file_path.parent.mkdir(exist_ok=True, parents=True)
-    with open(target_file_path, 'w', encoding=TARGET_ENCODING) as target_file:
-        target_file.write(rendered_content)
+def writing_render_handler(context: RenderTemplateContext) -> None:
+    context.target_file_path.parent.mkdir(exist_ok=True, parents=True)
+    with open(context.target_file_path, 'w', encoding=TARGET_ENCODING) as target_file:
+        target_file.write(context.rendered_content)
+
+def composite_render_pipeline(
+    steps: Sequence[tuple[RenderHandler, RenderResultObserver | None]]
+) -> tuple[RenderHandler, RenderResultObserver | None]:
+    """Collapses a list of (handler, observer) steps into a single (handler, observer) pair."""
+    assert len(steps) >= 1
+    if len(steps) == 1:
+        return steps[0]
+
+    handlers  = [handler  for handler,  _ in steps]
+    observers = [observer for _, observer in steps]
+
+    def composite_observer(target_file_path: Path, render_handler_result: Any):
+        for observer, result in zip(observers, render_handler_result):
+            if observer is not None:
+                observer(target_file_path, result)
+
+    return (_CompositeRenderHandler(handlers), composite_observer)
 
 def render_dir(
     config:                 RenderConfig,
@@ -142,7 +184,6 @@ def render_dir(
 
     def job_success_callback(template_result: _RenderTemplateResult):
         result.rendered_templates_count += 1
-        result.render_handler_results[template_result.target_file_path] = template_result.render_handler_result
         if config.is_verbose:
             print(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
         if render_result_observer is not None:
@@ -217,7 +258,8 @@ def _render_template_job(config: RenderConfig, template_path: Path, render_handl
     try:
         random.seed(config.random_seed)
         rendered_content      = _render_template(_jinja_env, template_name, _vars)
-        render_handler_result = render_handler(target_file_path, rendered_content)
+        context               = RenderTemplateContext(template_path, config.target_path, target_file_path, rendered_content)
+        render_handler_result = render_handler(context)
     finally:
         del _vars[_TEMPLATE_PATH_VAR]
 

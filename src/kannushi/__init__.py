@@ -5,15 +5,18 @@ __all__ = [
     "TemplateVariables",
     "load_vars_from_yaml_files",
     "post_process_vars",
+    "RenderTemplateContext",
     "RenderHandler",
     "RenderResultObserver",
     "RenderConfig",
     "RenderDirResult",
     "writing_render_handler",
+    "composite_render_pipeline",
     "render_dir",
     "TargetFileStatus",
-    "verification_render_handler",
-    "verification_render_result_observer"
+    "TargetDiff",
+    "DiffRenderResultObserver",
+    "make_diff_render_pipeline_step"
 ]
 
 #
@@ -24,5 +27,8 @@ from . import exceptions, extensions, timing
 from ._vars import TemplateVariables
 from ._vars.loading import load_vars_from_yaml_files
 from ._vars.post_processing import post_process_vars
-from ._rendering import RenderHandler, RenderResultObserver, RenderConfig, RenderDirResult, writing_render_handler, render_dir
-from ._verification import TargetFileStatus, verification_render_handler, verification_render_result_observer
+from ._rendering import (
+    RenderTemplateContext, RenderHandler, RenderResultObserver, RenderConfig, RenderDirResult,
+    writing_render_handler, composite_render_pipeline, render_dir
+)
+from ._diff import TargetFileStatus, TargetDiff, DiffRenderResultObserver, make_diff_render_pipeline_step

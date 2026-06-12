@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Added
+
+- Support for the `--diff` CLI argument. When given, the tool creates a file at the given path, containing a unified diff between the current target files and their newly rendered coutent. It can be combined with `--check` or used in its absence. Missing target files are included in the diff as created. If all target files are up to date, an empty diff file is created.
+- Package API now exposes `RenderTemplateContext`, `composite_render_pipeline`, `make_diff_render_pipeline_step`, `TargetDiff` and `DiffRenderResultObserver`.
+
+### Changed
+
+- Render handlers now receive a single `RenderTemplateContext` argument (replacing the separate target path and rendered content parameters).
+
+### Removed
+
+- `verification_render_handler` and `verification_render_result_observer` - their role is now covered by `make_diff_render_pipeline_step` and `DiffRenderResultObserver`.
+- `render_handler_results` collection from `RenderDirResult`.
 
 ## [0.6.0][0.6.0] - 2026-04-14
 

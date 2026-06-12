@@ -91,7 +91,8 @@ It's also possible to use `--vars-processor` alone, without `--vars`, provided t
 usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
                 [--vars-processor VARS_PROCESSOR_MODULE]
                 [--vars-processor-func VARS_PROCESSOR_FUNCTION] [--seed RANDOM_SEED]
-                [-j JOBS_COUNT] [--check] [-v] [--no-color]
+                [-j JOBS_COUNT] [--check] [--log LOG_YAML_PATH] [--diff DIFF_PATH]
+                [-v] [--no-color]
                 SOURCE_PATH TARGET_PATH
 
 Renders all Jinja templates in a directory into files in another directory, preserving the folder
@@ -118,6 +119,9 @@ options:
   --check               check if files under TARGET_PATH are consistent with their
                         templates from SOURCE_PATH, make no changes on disk, exit non-zero if
                         any inconsistencies are found
+  --log LOG_YAML_PATH   output log file path (logs written as YAML)
+  --diff DIFF_PATH      output path for unified diff between current and newly-rendered versions
+                        of target files
   -v, --verbose         output processed file paths and their render times to stdout
   --no-color            disable output coloring
 ```

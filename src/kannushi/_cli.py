@@ -14,7 +14,7 @@ import yaml
 
 from . import (
     TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, post_process_vars,
-    render_dir, writing_render_handler, verification_render_handler, verification_render_result_observer
+    render_dir, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
 )
 from .exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
 from .timing import StageRuntimeReporter
@@ -37,6 +37,8 @@ _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME = 'process_vars'
 _SIGNAL_EXIT_CODE_OFFSET = 128
 
 _MAX_FILE_PATHS_LOGGED_NON_VERBOSE = 5
+
+_DIFF_ENCODING = 'utf-8'
 
 #
 # Command line arguments
@@ -69,6 +71,7 @@ def _make_cli_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument('--log', dest='log_yaml_path', metavar='LOG_YAML_PATH', type=Path, help='output log file path (logs written as YAML)')
+    parser.add_argument('--diff', dest='diff_path', metavar='DIFF_PATH', type=Path, help='output path for unified diff between current and newly-rendered versions of target files')
 
     parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
     parser.add_argument('--no-color', action='store_true', dest='is_color_disabled', help='disable output coloring')
@@ -89,10 +92,10 @@ class _VerificationResult:
     missing_file_paths:  list[Path]
 
     @staticmethod
-    def from_render_handler_results(verification_render_handler_results: dict[Path, TargetFileStatus]) -> "_VerificationResult":
+    def from_target_file_statuses(target_file_statuses: dict[Path, TargetFileStatus]) -> "_VerificationResult":
         modified_file_paths = []
         missing_file_paths  = []
-        for file_path, file_status in verification_render_handler_results.items():
+        for file_path, file_status in target_file_statuses.items():
             if file_status == TargetFileStatus.MODIFIED:
                 modified_file_paths.append(file_path)
             elif file_status == TargetFileStatus.MISSING:
@@ -138,16 +141,20 @@ class _MainExitCode(int, Enum):
         return self.name.lower()
 
 class _MainContext:
-    def __init__(self, log_yaml_path: Path | None, is_verbose: bool):
+    def __init__(self, log_yaml_path: Path | None, diff_path: Path | None, is_verbose: bool):
         self.__vars_loading_error:    str | None                 = None
         self.__vars_processing_error: str | None                 = None
         self.__render_dir_result:     RenderDirResult | None     = None
         self.__verification_result:   _VerificationResult | None = None
+        self.__unified_diff:          str | None                 = None
         if log_yaml_path is not None:
             atexit.register(self.__write_yaml_log, log_yaml_path, is_verbose)
+        if diff_path is not None:
+            atexit.register(self.__write_diff, diff_path, is_verbose)
 
     def on_user_interruption(self, added_note: str | None = None) -> NoReturn:
         atexit.unregister(self.__write_yaml_log)
+        atexit.unregister(self.__write_diff)
         print_warning(f"warning: Interrupted by the user{f' ({added_note})' if added_note is not None else ''}")
         self.__exit_with_code(_MainExitCode.INTERRUPTED)
 
@@ -163,9 +170,10 @@ class _MainContext:
             print(hint)
         self.__exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
 
-    def finish_with_results(self, render_dir_result: RenderDirResult, verification_result: _VerificationResult | None) -> NoReturn:
+    def finish_with_results(self, render_dir_result: RenderDirResult, verification_result: _VerificationResult | None, unified_diff: str | None) -> NoReturn:
         self.__render_dir_result   = render_dir_result
         self.__verification_result = verification_result
+        self.__unified_diff        = unified_diff
         self.__exit_with_code(_MainExitCode.from_results(self.__render_dir_result, self.__verification_result))
 
     def __exit_with_code(self, exit_code: _MainExitCode) -> NoReturn:
@@ -180,6 +188,17 @@ class _MainContext:
             _MainContext.__write_yaml_log_impl(log_yaml_path, self.__to_log_dict())
         except BaseException as e:
             print_warning(f"warning: Failed to write log to {log_yaml_path} ({e})")
+
+    def __write_diff(self, diff_path: Path, is_verbose: bool):
+        assert self.__exit_code != _MainExitCode.INTERRUPTED
+        if self.__unified_diff is None:
+            return
+        if is_verbose:
+            print(f"Writing unified diff to {diff_path}...")
+        try:
+            diff_path.write_text(self.__unified_diff, encoding=_DIFF_ENCODING, newline='')
+        except BaseException as e:
+            print_warning(f"warning: Failed to write diff to {diff_path} ({e})")
 
     @staticmethod
     def __write_yaml_log_impl(log_yaml_path: Path, log_dict: dict):
@@ -290,11 +309,20 @@ def main():
     if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
 
-    context = _MainContext(args.log_yaml_path, args.is_verbose)
+    context = _MainContext(args.log_yaml_path, args.diff_path, args.is_verbose)
     config  = _make_render_config_from_args(args)
 
-    render_handler         = verification_render_handler         if args.mode == _Mode.VERIFICATION else writing_render_handler
-    render_result_observer = verification_render_result_observer if args.mode == _Mode.VERIFICATION and config.is_verbose else None
+    must_diff = args.diff_path is not None
+    if args.mode == _Mode.VERIFICATION:
+        diff_render_handler, diff_result_observer = make_diff_render_pipeline_step(must_collect_unified_diff=must_diff, must_warn_on_inconsistency=config.is_verbose)
+        render_pipeline_steps                     = [(diff_render_handler, diff_result_observer)]
+    elif must_diff:
+        diff_render_handler, diff_result_observer = make_diff_render_pipeline_step(must_collect_unified_diff=True, must_warn_on_inconsistency=False) # inconsistencies are expected when writing
+        render_pipeline_steps                     = [(diff_render_handler, diff_result_observer), (writing_render_handler, None)]
+    else:
+        diff_result_observer  = None
+        render_pipeline_steps = [(writing_render_handler, None)]
+    render_handler, render_result_observer = composite_render_pipeline(render_pipeline_steps)
 
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
@@ -335,8 +363,13 @@ def main():
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
-    render_result       = render_dir(config, vars, render_handler, render_result_observer, progress_listener=stage_time_reporter)
-    verification_result = _VerificationResult.from_render_handler_results(render_result.render_handler_results) if args.mode == _Mode.VERIFICATION else None
+    render_result = render_dir(config, vars, render_handler, render_result_observer, progress_listener=stage_time_reporter)
+
+    verification_result = None
+    if args.mode == _Mode.VERIFICATION:
+        assert diff_result_observer is not None
+        verification_result = _VerificationResult.from_target_file_statuses(diff_result_observer.target_file_statuses)
+
     if render_result.was_interrupted:
         context.on_user_interruption(f"{render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped")
     if render_result.errors_count > 0:
@@ -349,5 +382,10 @@ def main():
             f"All {render_result.rendered_templates_count} templates rendered without errors{' but there are inconsistencies' if is_verification_failed else ''}",
             file=stdout
         )
+
     _try_log_verification_result(verification_result, render_result, config.is_verbose)
-    context.finish_with_results(render_result, verification_result)
+    context.finish_with_results(
+        render_result,
+        verification_result,
+        diff_result_observer.unified_diff if diff_result_observer is not None else None
+    )
