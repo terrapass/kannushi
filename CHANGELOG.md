@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for the `--diff` CLI argument. When given, the tool creates a file at the given path, containing a unified diff between the current target files and their newly rendered coutent. It can be combined with `--check` or used in its absence. Missing target files are included in the diff as created. If all target files are up to date, an empty diff file is created.
+- Support for the `--junit` CLI argument, which can be used only in combination with `--check` to write a JUnit XML report - primarily intended to be used as `artifacts:junit` job output in GitLab CI. The following "test cases" are recorded: `vars_read_successful`, `vars_processing_successful`, `no_jinja_render_errors`, `all_target_files_exist`, `existing_target_files_current`, `all_target_files_current`. This argument is only supported when the optional `junit` extra is installed (`pip install "kannushi[junit]"`).
 - Package API now exposes `RenderTemplateContext`, `composite_render_pipeline`, `make_diff_render_pipeline_step`, `TargetDiff` and `DiffRenderResultObserver`.
 
 ### Changed

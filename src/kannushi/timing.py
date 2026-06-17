@@ -63,7 +63,7 @@ class StageRuntimeReporter(ProgressListener):
         if was_interrupted:
             self.__interrupted_stages.add(stage)
         stage_verb_str = "interrupted after" if was_interrupted else "completed in"
-        self.__print_impl(f"{stage.value} {stage_verb_str} {self.__stage_time_seconds(stage):.1f} seconds{self.__format_errors_count(' with {0}', errors_count)}")
+        self.__print_impl(f"{stage.value} {stage_verb_str} {self.stage_time_seconds(stage):.1f} seconds{self.__format_errors_count(' with {0}', errors_count)}")
 
     def log_summary(self):
         total_runtime_seconds = default_timer() - self.__init_time_seconds
@@ -71,14 +71,14 @@ class StageRuntimeReporter(ProgressListener):
         if not self.__is_verbose:
             return
         for stage in Stage:
-            stage_time_seconds = self.__stage_time_seconds(stage)
+            stage_time_seconds = self.stage_time_seconds(stage)
             if stage_time_seconds is None:
                 continue
             assert stage in self.__stage_errors_counts
             stage_stats_str = self.__format_stage_stats(stage_time_seconds, self.__stage_errors_counts[stage], stage in self.__interrupted_stages)
             self.__print_impl(f"- {stage.value:<27}{stage_stats_str}")
 
-    def __stage_time_seconds(self, stage: Stage) -> float | None:
+    def stage_time_seconds(self, stage: Stage) -> float | None:
         if stage not in self.__stage_start_times_seconds or stage not in self.__stage_end_times_seconds:
             return None
         return self.__stage_end_times_seconds[stage] - self.__stage_start_times_seconds[stage]

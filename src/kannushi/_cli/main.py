@@ -12,13 +12,14 @@ from io import TextIOWrapper
 
 import yaml
 
-from . import (
+from .. import (
     TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, post_process_vars,
     render_dir, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
 )
-from .exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
-from .timing import StageRuntimeReporter
-from ._logging import set_color_disabled, print_success, print_warning, print_error
+from ..exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
+from ..timing import Stage, StageRuntimeReporter
+from .._logging import set_color_disabled, print_success, print_warning, print_error
+from .junit import IS_JUNIT_AVAILABLE, JunitReportWriter
 
 #
 # Constants
@@ -72,6 +73,12 @@ def _make_cli_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('--log', dest='log_yaml_path', metavar='LOG_YAML_PATH', type=Path, help='output log file path (logs written as YAML)')
     parser.add_argument('--diff', dest='diff_path', metavar='DIFF_PATH', type=Path, help='output path for unified diff between current and newly-rendered versions of target files')
+
+    if IS_JUNIT_AVAILABLE:
+        parser.add_argument(
+            '--junit', dest='junit_xml_path', metavar='JUNIT_XML_PATH', type=Path,
+            help="output path for a JUnit XML report (requires --check)"
+        )
 
     parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
     parser.add_argument('--no-color', action='store_true', dest='is_color_disabled', help='disable output coloring')
@@ -141,20 +148,26 @@ class _MainExitCode(int, Enum):
         return self.name.lower()
 
 class _MainContext:
-    def __init__(self, log_yaml_path: Path | None, diff_path: Path | None, is_verbose: bool):
+    def __init__(self, args: argparse.Namespace, stage_time_reporter: StageRuntimeReporter):
+        self.__args                                              = args
+        self.__stage_time_reporter                               = stage_time_reporter
         self.__vars_loading_error:    str | None                 = None
         self.__vars_processing_error: str | None                 = None
         self.__render_dir_result:     RenderDirResult | None     = None
         self.__verification_result:   _VerificationResult | None = None
         self.__unified_diff:          str | None                 = None
-        if log_yaml_path is not None:
-            atexit.register(self.__write_yaml_log, log_yaml_path, is_verbose)
-        if diff_path is not None:
-            atexit.register(self.__write_diff, diff_path, is_verbose)
+        if args.log_yaml_path is not None:
+            atexit.register(self.__write_yaml_log, args.log_yaml_path, args.is_verbose)
+        if args.diff_path is not None:
+            atexit.register(self.__write_diff, args.diff_path, args.is_verbose)
+        junit_xml_path = getattr(args, 'junit_xml_path', None)
+        if junit_xml_path is not None:
+            atexit.register(self.__write_junit_xml_report, junit_xml_path, args.is_verbose)
 
     def on_user_interruption(self, added_note: str | None = None) -> NoReturn:
         atexit.unregister(self.__write_yaml_log)
         atexit.unregister(self.__write_diff)
+        atexit.unregister(self.__write_junit_xml_report)
         print_warning(f"warning: Interrupted by the user{f' ({added_note})' if added_note is not None else ''}")
         self.__exit_with_code(_MainExitCode.INTERRUPTED)
 
@@ -199,6 +212,33 @@ class _MainContext:
             diff_path.write_text(self.__unified_diff, encoding=_DIFF_ENCODING, newline='')
         except BaseException as e:
             print_warning(f"warning: Failed to write diff to {diff_path} ({e})")
+
+    def __write_junit_xml_report(self, junit_xml_path: Path, is_verbose: bool):
+        assert self.__exit_code != _MainExitCode.INTERRUPTED
+        if is_verbose:
+            print(f"Writing JUnit XML report to {junit_xml_path}...")
+        try:
+            (
+                JunitReportWriter()
+                .with_vars_loading(
+                    requested=self.__args.vars_glob is not None,
+                    error=self.__vars_loading_error,
+                    elapsed_sec=self.__stage_time_reporter.stage_time_seconds(Stage.VARS_LOADING),
+                )
+                .with_vars_processing(
+                    requested=self.__args.vars_processor_module_locator is not None,
+                    error=self.__vars_processing_error,
+                    elapsed_sec=self.__stage_time_reporter.stage_time_seconds(Stage.VARS_PROCESSING),
+                )
+                .with_rendering(
+                    self.__render_dir_result,
+                    elapsed_sec=self.__stage_time_reporter.stage_time_seconds(Stage.JINJA_RENDER),
+                )
+                .with_verification(self.__verification_result)
+                .write(junit_xml_path)
+            )
+        except BaseException as e:
+            print_warning(f"warning: Failed to write JUnit XML report to {junit_xml_path} ({e})")
 
     @staticmethod
     def __write_yaml_log_impl(log_yaml_path: Path, log_dict: dict):
@@ -305,12 +345,16 @@ def main():
     parser = _make_cli_parser()
     args   = parser.parse_args()
 
+    if IS_JUNIT_AVAILABLE and args.junit_xml_path is not None and args.mode != _Mode.VERIFICATION:
+        parser.error('--junit requires --check')
+
     set_color_disabled(args.is_color_disabled)
     if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
 
-    context = _MainContext(args.log_yaml_path, args.diff_path, args.is_verbose)
-    config  = _make_render_config_from_args(args)
+    config              = _make_render_config_from_args(args)
+    stage_time_reporter = StageRuntimeReporter(config.is_verbose)
+    context             = _MainContext(args, stage_time_reporter)
 
     must_diff = args.diff_path is not None
     if args.mode == _Mode.VERIFICATION:
@@ -327,7 +371,6 @@ def main():
     if isinstance(stdout, TextIOWrapper):
         stdout.reconfigure(line_buffering=True)
 
-    stage_time_reporter = StageRuntimeReporter(config.is_verbose)
     atexit.register(lambda: stage_time_reporter.log_summary())
 
     try:
