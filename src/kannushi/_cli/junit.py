@@ -133,9 +133,9 @@ def _all_target_files_current(skip_reason: str | None, verification: "_Verificat
 
 def _consistency_skip_reason(any_vars_failed: bool, render_ran: bool, render_failed: bool, verification_ran: bool) -> str | None:
     if any_vars_failed or not render_ran:
-        return 'skipped because rendering did not run'
+        return 'consistency check was skipped because Jinja rendering did not run'
     if render_failed:
-        return 'skipped because some templates failed to render (consistency is inconclusive)'
+        return 'consistency check was skipped due to template rendering errors'
     if not verification_ran:
         return 'skipped because consistency was not checked (run with --check)'
     return None
