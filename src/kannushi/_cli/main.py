@@ -19,7 +19,7 @@ from .. import (
 from ..exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
 from ..timing import Stage, StageRuntimeReporter
 from .._logging import set_color_disabled, print_success, print_warning, print_error
-from .junit import IS_JUNIT_AVAILABLE, JunitReportWriter
+from .junit import IS_JUNIT_AVAILABLE, JunitReport, write_junit_report_to_xml_file
 
 #
 # Constants
@@ -218,25 +218,18 @@ class _MainContext:
         if is_verbose:
             print(f"Writing JUnit XML report to {junit_xml_path}...")
         try:
-            (
-                JunitReportWriter()
-                .with_vars_loading(
-                    requested=self.__args.vars_glob is not None,
-                    error=self.__vars_loading_error,
-                    elapsed_sec=self.__stage_time_reporter.stage_time_seconds(Stage.VARS_LOADING),
-                )
-                .with_vars_processing(
-                    requested=self.__args.vars_processor_module_locator is not None,
-                    error=self.__vars_processing_error,
-                    elapsed_sec=self.__stage_time_reporter.stage_time_seconds(Stage.VARS_PROCESSING),
-                )
-                .with_rendering(
-                    self.__render_dir_result,
-                    elapsed_sec=self.__stage_time_reporter.stage_time_seconds(Stage.JINJA_RENDER),
-                )
-                .with_verification(self.__verification_result)
-                .write(junit_xml_path)
+            report = JunitReport(
+                vars_loading_requested    = self.__args.vars_glob is not None,
+                vars_loading_error        = self.__vars_loading_error,
+                vars_loading_elapsed      = self.__stage_time_reporter.stage_time_seconds(Stage.VARS_LOADING),
+                vars_processing_requested = self.__args.vars_processor_module_locator is not None,
+                vars_processing_error     = self.__vars_processing_error,
+                vars_processing_elapsed   = self.__stage_time_reporter.stage_time_seconds(Stage.VARS_PROCESSING),
+                render_result             = self.__render_dir_result,
+                render_elapsed            = self.__stage_time_reporter.stage_time_seconds(Stage.JINJA_RENDER),
+                verification_result       = self.__verification_result,
             )
+            write_junit_report_to_xml_file(report, junit_xml_path)
         except BaseException as e:
             print_warning(f"warning: Failed to write JUnit XML report to {junit_xml_path} ({e})")
 
