@@ -1,0 +1,35 @@
+name: "Set up uv environment"
+description: "Set up Python, install uv, sync the locked environment, and activate the virtualenv."
+
+inputs:
+  python-version:
+    description: "Python version to install. Takes precedence over python-version-file."
+    required: false
+    default: ""
+  python-version-file:
+    description: "File to read the Python version from (used when python-version is empty)."
+    required: false
+    default: ""
+  uv-sync-args:
+    description: "Arguments passed to `uv sync`."
+    required: false
+    default: "--locked --all-extras --dev"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Set up Python"
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+        python-version-file: ${{ inputs.python-version-file }}
+    - name: "Install uv"
+      uses: astral-sh/setup-uv@v7
+    - name: "uv sync"
+      shell: bash
+      run: uv sync ${{ inputs.uv-sync-args }}
+    - name: "Activate uv virtualenv"
+      shell: bash
+      run: |
+        source .venv/bin/activate
+        echo "$PWD/.venv/bin" >> $GITHUB_PATH
