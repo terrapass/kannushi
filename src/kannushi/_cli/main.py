@@ -241,10 +241,21 @@ class _MainContext:
     def __to_log_dict(self) -> dict:
         return {
             "result":                self.__exit_code.to_log_str(),
+            "input":                 self.__input_to_log_dict(),
             "vars_loading_error":    self.__vars_loading_error,
             "vars_processing_error": self.__vars_processing_error,
             "render":                self.__render_dir_result_to_log_dict(),
             "verification":          self.__verification_result_to_log_dict(),
+        }
+
+    def __input_to_log_dict(self) -> dict:
+        return {
+            "source_path":         str(self.__args.source_path),
+            "target_path":         str(self.__args.target_path),
+            "vars_glob":           self.__args.vars_glob,
+            "skip_glob":           self.__args.skip_glob,
+            "vars_processor":      self.__args.vars_processor_module_locator,
+            "vars_processor_func": self.__args.vars_processor_function_name if self.__args.vars_processor_module_locator is not None else None,
         }
 
     def __render_dir_result_to_log_dict(self) -> dict | None:

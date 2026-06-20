@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased][unreleased]
+
+### Changed
+
+- The `--log` YAML output now includes an `input` section echoing the run's arguments: `source_path`, `target_path`, `vars_glob`, `skip_glob`, `vars_processor` and `vars_processor_func` (the optional ones are `null` when not given; `vars_processor_func` is `null` in the absence of `vars_processor`).
+
 ## [0.7.0][0.7.0] - 2026-06-20
 
 ### Added
