@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - On Linux the pre-3.14 default of [`fork` start method](https://docs.python.org/3.14/library/multiprocessing.html#multiprocessing-start-methods) for `multiprocessing` is now forced in CLI on Python 3.14+ (does not affect **kannushi**'s public package API behavior).
 - On other platforms (Windows, macOS) template variables are now communicated to the render worker processes via shared memory instead of being pickled separately for each worker, thus reducing render pool initialization overhead for high parallel job count cases.
 
+### Fixed
+
+- Template variables whose name coincides with a `dict` method name (e.g. `items`, `keys`, `update`) no longer break rendering on Linux (Python 3.14+) and other platforms.
+
 ## [0.8.0][0.8.0] - 2026-06-21
 
 ### Changed
