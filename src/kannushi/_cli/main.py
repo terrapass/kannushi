@@ -18,7 +18,7 @@ from .. import (
 )
 from ..exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
 from ..timing import Stage, StageRuntimeReporter
-from .._logging import set_color_disabled, print_success, print_warning, print_error
+from .._logging import set_color_disabled, set_verbose, is_verbose, print_success, print_verbose, print_warning, print_error
 from .junit import IS_JUNIT_AVAILABLE, JunitReport, write_junit_report_to_xml_file
 
 #
@@ -157,12 +157,12 @@ class _MainContext:
         self.__verification_result:   _VerificationResult | None = None
         self.__unified_diff:          str | None                 = None
         if args.log_yaml_path is not None:
-            atexit.register(self.__write_yaml_log, args.log_yaml_path, args.is_verbose)
+            atexit.register(self.__write_yaml_log, args.log_yaml_path)
         if args.diff_path is not None:
-            atexit.register(self.__write_diff, args.diff_path, args.is_verbose)
+            atexit.register(self.__write_diff, args.diff_path)
         junit_xml_path = getattr(args, 'junit_xml_path', None)
         if junit_xml_path is not None:
-            atexit.register(self.__write_junit_xml_report, junit_xml_path, args.is_verbose)
+            atexit.register(self.__write_junit_xml_report, junit_xml_path)
 
     def on_user_interruption(self, added_note: str | None = None) -> NoReturn:
         atexit.unregister(self.__write_yaml_log)
@@ -193,30 +193,27 @@ class _MainContext:
         self.__exit_code = exit_code
         exit(exit_code)
 
-    def __write_yaml_log(self, log_yaml_path: Path, is_verbose: bool):
+    def __write_yaml_log(self, log_yaml_path: Path):
         assert self.__exit_code != _MainExitCode.INTERRUPTED
-        if is_verbose:
-            print(f"Writing log as YAML to {log_yaml_path}...")
+        print_verbose(f"Writing log as YAML to {log_yaml_path}...")
         try:
             _MainContext.__write_yaml_log_impl(log_yaml_path, self.__to_log_dict())
         except BaseException as e:
             print_warning(f"warning: Failed to write log to {log_yaml_path} ({e})")
 
-    def __write_diff(self, diff_path: Path, is_verbose: bool):
+    def __write_diff(self, diff_path: Path):
         assert self.__exit_code != _MainExitCode.INTERRUPTED
         if self.__unified_diff is None:
             return
-        if is_verbose:
-            print(f"Writing unified diff to {diff_path}...")
+        print_verbose(f"Writing unified diff to {diff_path}...")
         try:
             diff_path.write_text(self.__unified_diff, encoding=_DIFF_ENCODING, newline='')
         except BaseException as e:
             print_warning(f"warning: Failed to write diff to {diff_path} ({e})")
 
-    def __write_junit_xml_report(self, junit_xml_path: Path, is_verbose: bool):
+    def __write_junit_xml_report(self, junit_xml_path: Path):
         assert self.__exit_code != _MainExitCode.INTERRUPTED
-        if is_verbose:
-            print(f"Writing JUnit XML report to {junit_xml_path}...")
+        print_verbose(f"Writing JUnit XML report to {junit_xml_path}...")
         try:
             report = JunitReport(
                 vars_loading_requested    = self.__args.vars_glob is not None,
@@ -297,11 +294,9 @@ def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
         skip_glob=args.skip_glob,
         random_seed=args.random_seed,
         requested_jobs_count=args.jobs_count,
-        is_verbose=args.is_verbose,
-        is_color_disabled=args.is_color_disabled,
     )
 
-def _try_log_verification_result(verification_result: _VerificationResult | None, render_result: RenderDirResult, is_verbose: bool):
+def _try_log_verification_result(verification_result: _VerificationResult | None, render_result: RenderDirResult):
     assert not render_result.was_interrupted
     if verification_result is None:
         return
@@ -321,23 +316,21 @@ def _try_log_verification_result(verification_result: _VerificationResult | None
     )
     _try_log_file_list(
         f"contain{'s' if verification_result.modified_files_count == 1 else ''} manual modifications or {'is' if verification_result.modified_files_count == 1 else 'are'} out of date",
-        verification_result.modified_file_paths,
-        is_verbose
+        verification_result.modified_file_paths
     )
     _try_log_file_list(
         f"{'is' if verification_result.missing_files_count == 1 else 'are'} missing",
-        verification_result.missing_file_paths,
-        is_verbose
+        verification_result.missing_file_paths
     )
 
-def _try_log_file_list(explanation: str, file_paths: list[Path], is_verbose: bool):
+def _try_log_file_list(explanation: str, file_paths: list[Path]):
     file_paths_count = len(file_paths)
     if file_paths_count <= 0:
         return
     print_error(f"error: {file_paths_count} file{'' if file_paths_count == 1 else 's'} {explanation}:")
-    for file_path in file_paths[:(file_paths_count if is_verbose else _MAX_FILE_PATHS_LOGGED_NON_VERBOSE)]:
+    for file_path in file_paths[:(file_paths_count if is_verbose() else _MAX_FILE_PATHS_LOGGED_NON_VERBOSE)]:
         print_error(str(file_path))
-    if not is_verbose and file_paths_count > _MAX_FILE_PATHS_LOGGED_NON_VERBOSE:
+    if not is_verbose() and file_paths_count > _MAX_FILE_PATHS_LOGGED_NON_VERBOSE:
         print_error(f"# ...and {file_paths_count - _MAX_FILE_PATHS_LOGGED_NON_VERBOSE} more; re-run with --verbose for the full list")
     print_error("")
 
@@ -352,17 +345,18 @@ def main():
     if IS_JUNIT_AVAILABLE and args.junit_xml_path is not None and args.mode != _Mode.VERIFICATION:
         parser.error('--junit requires --check')
 
+    set_verbose(args.is_verbose)
     set_color_disabled(args.is_color_disabled)
     if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
 
     config              = _make_render_config_from_args(args)
-    stage_time_reporter = StageRuntimeReporter(config.is_verbose)
+    stage_time_reporter = StageRuntimeReporter(args.is_verbose)
     context             = _MainContext(args, stage_time_reporter)
 
     must_diff = args.diff_path is not None
     if args.mode == _Mode.VERIFICATION:
-        diff_render_handler, diff_result_observer = make_diff_render_pipeline_step(must_collect_unified_diff=must_diff, must_warn_on_inconsistency=config.is_verbose)
+        diff_render_handler, diff_result_observer = make_diff_render_pipeline_step(must_collect_unified_diff=must_diff, must_warn_on_inconsistency=args.is_verbose)
         render_pipeline_steps                     = [(diff_render_handler, diff_result_observer)]
     elif must_diff:
         diff_render_handler, diff_result_observer = make_diff_render_pipeline_step(must_collect_unified_diff=True, must_warn_on_inconsistency=False) # inconsistencies are expected when writing
@@ -421,7 +415,7 @@ def main():
         context.on_user_interruption(f"{render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped")
     if render_result.errors_count > 0:
         assert len(render_result.errors_by_target_file_path) > 0
-        _try_log_file_list(f"failed to render from template{'' if len(render_result.errors_by_target_file_path) == 1 else 's'}", list(render_result.errors_by_target_file_path.keys()), config.is_verbose)
+        _try_log_file_list(f"failed to render from template{'' if len(render_result.errors_by_target_file_path) == 1 else 's'}", list(render_result.errors_by_target_file_path.keys()))
     elif not render_result.was_interrupted:
         assert render_result.is_successful
         is_verification_failed = verification_result is not None and not verification_result.is_successful
@@ -430,7 +424,7 @@ def main():
             file=stdout
         )
 
-    _try_log_verification_result(verification_result, render_result, config.is_verbose)
+    _try_log_verification_result(verification_result, render_result)
     context.finish_with_results(
         render_result,
         verification_result,

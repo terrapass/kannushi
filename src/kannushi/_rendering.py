@@ -16,7 +16,7 @@ from .extensions import ErrorExtension
 from .timing import Stage, ProgressListener, NullProgressListener
 from ._vars import TemplateVariables
 from ._vars.loading import inject_service_var
-from ._logging import set_color_disabled, print_warning, print_error
+from ._logging import print_verbose, print_warning, print_error
 
 #
 # Constants
@@ -70,8 +70,6 @@ class RenderConfig:
     skip_glob:            str | None
     random_seed:          int | None
     requested_jobs_count: int | None
-    is_verbose:           bool
-    is_color_disabled:    bool
 
     @cached_property
     def effective_jobs_count(self) -> int:
@@ -184,8 +182,7 @@ def render_dir(
 
     def job_success_callback(template_result: _RenderTemplateResult):
         result.rendered_templates_count += 1
-        if config.is_verbose:
-            print(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
+        print_verbose(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
         if render_result_observer is not None:
             render_result_observer(template_result.target_file_path, template_result.render_handler_result)
 
@@ -198,7 +195,7 @@ def render_dir(
 
     result = RenderDirResult()
     result.selected_templates_count = len(selected_paths)
-    with Pool(config.effective_jobs_count, _init_render_template_process, (config.source_path, vars, config.is_color_disabled)) as process_pool:
+    with Pool(config.effective_jobs_count, _init_render_template_process, (config.source_path, vars)) as process_pool:
         def render_template_async(template_path) -> AsyncResult:
             return process_pool.apply_async(
                 _render_template_job,
@@ -230,7 +227,7 @@ def render_dir(
 # Service
 #
 
-def _init_render_template_process(source_path: Path, vars: TemplateVariables, is_color_disabled: bool):
+def _init_render_template_process(source_path: Path, vars: TemplateVariables):
     # Prevent Ctrl-C from raising KeyboardInterrupt in child processes
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -242,7 +239,6 @@ def _init_render_template_process(source_path: Path, vars: TemplateVariables, is
         undefined=StrictUndefined
     )
     _vars = vars
-    set_color_disabled(is_color_disabled)
 
 def _render_template_job(config: RenderConfig, template_path: Path, render_handler: RenderHandler) -> _RenderTemplateResult:
     """This function is the entry point for individual template rendering jobs run in parallel"""
