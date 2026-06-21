@@ -65,7 +65,7 @@ def _make_cli_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('--seed', dest='random_seed', metavar='RANDOM_SEED', type=int, help='RNG seed to use for any randomization within templates')
 
-    parser.add_argument('-j', '--jobs', dest='jobs_count', metavar='JOBS_COUNT', type=int, help='number of parallel jobs (defaults to the number of logical CPU cores)')
+    parser.add_argument('-j', '--jobs', dest='jobs_count', metavar='JOBS_COUNT', type=int, help='max number of parallel jobs (defaults to the number of logical CPU cores)')
 
     parser.add_argument(
         '--check', action='store_const', dest='mode', const=_Mode.VERIFICATION, default=_Mode.WRITING,

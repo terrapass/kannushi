@@ -126,7 +126,7 @@ options:
                         will be passed to (defaults to process_vars)
   --seed RANDOM_SEED    RNG seed to use for any randomization within templates
   -j, --jobs JOBS_COUNT
-                        number of parallel jobs (defaults to the number of logical CPU cores)
+                        max number of parallel jobs (defaults to the number of logical CPU cores)
   --check               check if files under TARGET_PATH are consistent with their
                         templates from SOURCE_PATH, make no changes on disk, exit non-zero if
                         any inconsistencies are found
