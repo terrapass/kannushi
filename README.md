@@ -103,7 +103,7 @@ usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
                 [--vars-processor VARS_PROCESSOR_MODULE]
                 [--vars-processor-func VARS_PROCESSOR_FUNCTION] [--seed RANDOM_SEED]
                 [-j JOBS_COUNT] [--check] [--log LOG_YAML_PATH] [--diff DIFF_PATH]
-                [-v] [--no-color]
+                [-v] [--no-color] [-V]
                 SOURCE_PATH TARGET_PATH
 
 Renders all Jinja templates in a directory into files in another directory, preserving the folder
@@ -135,4 +135,5 @@ options:
                         of target files
   -v, --verbose         output processed file paths and their render times to stdout
   --no-color            disable output coloring
+  -V, --version         print kannushi version and exit
 ```

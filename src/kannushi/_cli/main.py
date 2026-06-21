@@ -3,6 +3,7 @@ import traceback
 import atexit
 import signal
 import multiprocessing
+import importlib.metadata
 from pathlib import Path
 from os import system
 from enum import Enum
@@ -26,6 +27,7 @@ from .junit import IS_JUNIT_AVAILABLE, JunitReport, write_junit_report_to_xml_fi
 # Constants
 #
 
+_PROGRAM_NAME    = 'kannushi'
 _CLI_DESCRIPTION = """
 Renders all Jinja templates in a directory into files in another directory, preserving the folder structure.
 Templates must use UTF-8 (with or without BOM), rendered files will reflect their source templates' BOM or lack thereof.
@@ -47,7 +49,7 @@ _DIFF_ENCODING = 'utf-8'
 #
 
 def _make_cli_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog='kannushi', description=_CLI_DESCRIPTION)
+    parser = argparse.ArgumentParser(prog=_PROGRAM_NAME, description=_CLI_DESCRIPTION)
 
     parser.add_argument('source_path', metavar='SOURCE_PATH', type=Path, help='root directory containing Jinja templates')
     parser.add_argument('target_path', metavar='TARGET_PATH', type=Path, help='target root directory for rendered files')
@@ -83,6 +85,8 @@ def _make_cli_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
     parser.add_argument('--no-color', action='store_true', dest='is_color_disabled', help='disable output coloring')
+
+    parser.add_argument('-V', '--version', action='version', version=f'%(prog)s {importlib.metadata.version(_PROGRAM_NAME)}', help=f'print {_PROGRAM_NAME} version and exit')
 
     return parser
 
