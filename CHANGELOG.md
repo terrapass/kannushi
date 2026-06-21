@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased][unreleased]
+<!-- ## [Unreleased][unreleased] -->
+
+## [1.0.0-rc.1][1.0.0-rc.1] - 2026-06-22
 
 ### Changed
 
@@ -160,7 +162,8 @@ Initial public release of **kannushi** - a command line utility for batch render
 - [`{% do %}` expression statements](https://jinja.palletsprojects.com/en/stable/extensions/#expression-statement) are supported in templates by means of the standard `jinja2.ext.do` Jinja2 extension.
 - [`jinja2-error`](https://pypi.org/project/jinja2-error/) extension is integrated to allow for use of the `{% error %}` Jinja tag to raise errors from template code.
 
-[unreleased]: https://github.com/terrapass/kannushi/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/terrapass/kannushi/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/terrapass/kannushi/compare/v0.8.0...v1.0.0-rc.1
 [0.8.0]: https://github.com/terrapass/kannushi/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/terrapass/kannushi/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/terrapass/kannushi/compare/v0.5.0...v0.6.0
