@@ -2,6 +2,7 @@ import argparse
 import traceback
 import atexit
 import signal
+import multiprocessing
 from pathlib import Path
 from os import system
 from enum import Enum
@@ -296,6 +297,10 @@ def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
         requested_jobs_count=args.jobs_count,
     )
 
+def _try_select_multiprocessing_start_method():
+    if sys_platform.startswith('linux') and 'fork' in multiprocessing.get_all_start_methods():
+        multiprocessing.set_start_method('fork', force=True) # avoids pickling vars for Jinja render pool
+
 def _try_log_verification_result(verification_result: _VerificationResult | None, render_result: RenderDirResult):
     assert not render_result.was_interrupted
     if verification_result is None:
@@ -349,6 +354,8 @@ def main():
     set_color_disabled(args.is_color_disabled)
     if not args.is_color_disabled and sys_platform == 'win32':
         system('color')
+
+    _try_select_multiprocessing_start_method()
 
     config              = _make_render_config_from_args(args)
     stage_time_reporter = StageRuntimeReporter(args.is_verbose)

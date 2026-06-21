@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Changed
+
+- Sped up render pool initialization stage for highly parallelized cases (high/default `--jobs` value on high CPU core count systems).
+- On Linux the pre-3.14 default of [`fork` start method](https://docs.python.org/3.14/library/multiprocessing.html#multiprocessing-start-methods) for `multiprocessing` is now forced in CLI on Python 3.14+ (does not affect **kannushi**'s public package API behavior).
+- On other platforms (Windows, macOS) template variables are now communicated to the render worker processes via shared memory instead of being pickled separately for each worker, thus reducing render pool initialization overhead for high parallel job count cases.
 
 ## [0.8.0][0.8.0] - 2026-06-21
 

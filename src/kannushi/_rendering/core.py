@@ -12,11 +12,12 @@ from timeit import default_timer
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from .extensions import ErrorExtension
-from .timing import Stage, ProgressListener, NullProgressListener
-from ._vars import TemplateVariables
-from ._vars.loading import inject_service_var
-from ._logging import print_verbose, print_warning, print_error
+from ..extensions import ErrorExtension
+from ..timing import Stage, ProgressListener, NullProgressListener
+from .._vars import TemplateVariables
+from .._vars.loading import inject_service_var
+from .._logging import print_verbose, print_warning, print_error
+from .ipc import TemplateVariablesTransport, make_template_variables_transport
 
 #
 # Constants
@@ -195,29 +196,30 @@ def render_dir(
 
     result = RenderDirResult()
     result.selected_templates_count = len(selected_paths)
-    with Pool(config.effective_jobs_count, _init_render_template_process, (config.source_path, vars)) as process_pool:
-        def render_template_async(template_path) -> AsyncResult:
-            return process_pool.apply_async(
-                _render_template_job,
-                (config, template_path, render_handler),
-                callback=job_success_callback,
-                error_callback=cast(Callable[[BaseException], None], partial(job_error_callback, template_path))
-            )
-        try:
-            async_results = [render_template_async(template_path) for template_path in selected_paths]
-            process_pool.close()
+    with make_template_variables_transport(vars) as vars_transport:
+        with Pool(config.effective_jobs_count, _init_render_template_process, (config.source_path, vars_transport)) as process_pool:
+            def render_template_async(template_path) -> AsyncResult:
+                return process_pool.apply_async(
+                    _render_template_job,
+                    (config, template_path, render_handler),
+                    callback=job_success_callback,
+                    error_callback=cast(Callable[[BaseException], None], partial(job_error_callback, template_path))
+                )
+            try:
+                async_results = [render_template_async(template_path) for template_path in selected_paths]
+                process_pool.close()
 
-            change_stage(Stage.JINJA_RENDER)
-            print(f'Rendering {len(selected_paths)} templates in {config.effective_jobs_count} parallel jobs...')
+                change_stage(Stage.JINJA_RENDER)
+                print(f'Rendering {len(selected_paths)} templates in {config.effective_jobs_count} parallel jobs...')
 
-            for async_result in async_results:
-                while not async_result.ready():
-                    async_result.wait(_ASYNC_POLLING_INTERVAL_SECONDS)
+                for async_result in async_results:
+                    while not async_result.ready():
+                        async_result.wait(_ASYNC_POLLING_INTERVAL_SECONDS)
 
-            process_pool.join()
-        except KeyboardInterrupt:
-            result.was_interrupted = True
-            process_pool.terminate()
+                process_pool.join()
+            except KeyboardInterrupt:
+                result.was_interrupted = True
+                process_pool.terminate()
 
     change_stage(None, result.errors_count if current_stage == Stage.JINJA_RENDER else 0, result.was_interrupted)
 
@@ -227,7 +229,7 @@ def render_dir(
 # Service
 #
 
-def _init_render_template_process(source_path: Path, vars: TemplateVariables):
+def _init_render_template_process(source_path: Path, vars_transport: TemplateVariablesTransport):
     # Prevent Ctrl-C from raising KeyboardInterrupt in child processes
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -238,7 +240,7 @@ def _init_render_template_process(source_path: Path, vars: TemplateVariables):
         autoescape=False,
         undefined=StrictUndefined
     )
-    _vars = vars
+    _vars = vars_transport.retrieve_vars()
 
 def _render_template_job(config: RenderConfig, template_path: Path, render_handler: RenderHandler) -> _RenderTemplateResult:
     """This function is the entry point for individual template rendering jobs run in parallel"""
