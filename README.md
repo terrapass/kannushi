@@ -133,7 +133,8 @@ options:
   --log LOG_YAML_PATH   output log file path (logs written as YAML)
   --diff DIFF_PATH      output path for unified diff between current and newly-rendered versions
                         of target files
-  -v, --verbose         output processed file paths and their render times to stdout
+  -v, --verbose         output all processed file paths, render times and additional info to
+                        stdout
   --no-color            disable output coloring
   -V, --version         print kannushi version and exit
 ```

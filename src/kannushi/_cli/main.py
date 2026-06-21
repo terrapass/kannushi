@@ -83,7 +83,7 @@ def _make_cli_parser() -> argparse.ArgumentParser:
             help="output path for a JUnit XML report (requires --check)"
         )
 
-    parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output processed file paths and their render times to stdout')
+    parser.add_argument('-v', '--verbose', action='store_true', dest='is_verbose', help='output all processed file paths, render times and additional info to stdout')
     parser.add_argument('--no-color', action='store_true', dest='is_color_disabled', help='disable output coloring')
 
     parser.add_argument('-V', '--version', action='version', version=f'%(prog)s {importlib.metadata.version(_PROGRAM_NAME)}', help=f'print {_PROGRAM_NAME} version and exit')
