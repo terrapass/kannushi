@@ -169,6 +169,10 @@ def render_dir(
     skipped_paths   = config.source_path.glob(config.skip_glob) if config.skip_glob is not None else []
     selected_paths  = [template_path for template_path in templates_paths if template_path not in skipped_paths]
 
+    if len(selected_paths) <= 0:
+        print_warning(f"warning: No{' (non-skipped)' if config.skip_glob is not None else ''} templates to render in {config.source_path}", file=stdout)
+        return RenderDirResult()
+
     current_stage = None
     def change_stage(stage: Stage | None, current_stage_errors_count: int = 0, was_interrupted: bool = False):
         nonlocal current_stage
@@ -178,7 +182,9 @@ def render_dir(
         if current_stage is not None:
             progress_listener.on_stage_started(current_stage)
 
-    print(f'Initializing {config.effective_jobs_count} render processes...')
+    actual_jobs_count = min(config.effective_jobs_count, len(selected_paths))
+
+    print(f'Initializing {actual_jobs_count} render processes...')
     change_stage(Stage.RENDER_POOL_INIT)
 
     def job_success_callback(template_result: _RenderTemplateResult):
@@ -197,7 +203,7 @@ def render_dir(
     result = RenderDirResult()
     result.selected_templates_count = len(selected_paths)
     with make_template_variables_transport(vars) as vars_transport:
-        with Pool(config.effective_jobs_count, _init_render_template_process, (config.source_path, vars_transport)) as process_pool:
+        with Pool(actual_jobs_count, _init_render_template_process, (config.source_path, vars_transport)) as process_pool:
             def render_template_async(template_path) -> AsyncResult:
                 return process_pool.apply_async(
                     _render_template_job,
@@ -210,7 +216,7 @@ def render_dir(
                 process_pool.close()
 
                 change_stage(Stage.JINJA_RENDER)
-                print(f'Rendering {len(selected_paths)} templates in {config.effective_jobs_count} parallel jobs...')
+                print(f'Rendering {len(selected_paths)} templates in {actual_jobs_count} parallel jobs...')
 
                 for async_result in async_results:
                     while not async_result.ready():

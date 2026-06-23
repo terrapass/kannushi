@@ -450,7 +450,7 @@ def main():
     if render_result.errors_count > 0:
         assert len(render_result.errors_by_target_file_path) > 0
         _try_log_file_list(f"failed to render from template{'' if len(render_result.errors_by_target_file_path) == 1 else 's'}", list(render_result.errors_by_target_file_path.keys()))
-    elif not render_result.was_interrupted:
+    elif not render_result.was_interrupted and render_result.selected_templates_count > 0:
         assert render_result.is_successful
         is_verification_failed = verification_result is not None and not verification_result.is_successful
         (print_warning if is_verification_failed else print_success)(
