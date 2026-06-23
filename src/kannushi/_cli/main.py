@@ -15,7 +15,7 @@ from io import TextIOWrapper
 import yaml
 
 from .. import (
-    TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, post_process_vars,
+    TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, pre_process_vars,
     render_dir, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
 )
 from ..exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
@@ -58,7 +58,7 @@ def _make_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument('--vars', dest='vars_glob', metavar='VARS_YAML_GLOB', type=str, help='YAML file(s) containing template variable definitions')
 
     parser.add_argument(
-        _VARS_PROCESSOR_MODULE_ARG, dest='vars_processor_module_locator', metavar='VARS_PROCESSOR_MODULE', type=str, help='Python file/module to use for variables dictionary post-processing'
+        _VARS_PROCESSOR_MODULE_ARG, dest='vars_processor_module_locator', metavar='VARS_PROCESSOR_MODULE', type=str, help='Python file/module to use for variables dictionary pre-processing'
     )
     parser.add_argument(
         _VARS_PROCESSOR_FUNCTION_ARG, dest='vars_processor_function_name', metavar='VARS_PROCESSOR_FUNCTION', type=str, default=_DEFAULT_VARS_PROCESSOR_FUNCTION_NAME,
@@ -391,7 +391,7 @@ def main():
 
     if args.vars_processor_module_locator is not None:
         try:
-            post_process_vars(vars, args.vars_processor_module_locator, args.vars_processor_function_name, stage_time_reporter)
+            pre_process_vars(vars, args.vars_processor_module_locator, args.vars_processor_function_name, stage_time_reporter)
         except KeyboardInterrupt:
             context.on_user_interruption()
         except ModuleExecutionException as e:

@@ -4,7 +4,7 @@ __all__ = [
     "timing",
     "TemplateVariables",
     "load_vars_from_yaml_files",
-    "post_process_vars",
+    "pre_process_vars",
     "RenderTemplateContext",
     "RenderHandler",
     "RenderResultObserver",
@@ -26,7 +26,7 @@ __all__ = [
 from . import exceptions, extensions, timing
 from ._vars import TemplateVariables
 from ._vars.loading import load_vars_from_yaml_files
-from ._vars.post_processing import post_process_vars
+from ._vars.pre_processing import pre_process_vars
 from ._rendering import (
     RenderTemplateContext, RenderHandler, RenderResultObserver, RenderConfig, RenderDirResult,
     writing_render_handler, composite_render_pipeline, render_dir

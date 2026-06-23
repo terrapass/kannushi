@@ -120,7 +120,7 @@ options:
   --vars VARS_YAML_GLOB
                         YAML file(s) containing template variable definitions
   --vars-processor VARS_PROCESSOR_MODULE
-                        Python file/module to use for variables dictionary post-processing
+                        Python file/module to use for variables dictionary pre-processing
   --vars-processor-func VARS_PROCESSOR_FUNCTION
                         single-parameter function in VARS_PROCESSOR_MODULE which vars dictionary
                         will be passed to (defaults to process_vars)

@@ -8,7 +8,7 @@ from timeit import default_timer
 
 class Stage(str, Enum):
     VARS_LOADING     = "YAML variables loading"
-    VARS_PROCESSING  = "Variables post-processing"
+    VARS_PROCESSING  = "Variables pre-processing"
     RENDER_POOL_INIT = "Render pool initialization"
     JINJA_RENDER     = "Jinja templates rendering"
 

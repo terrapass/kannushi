@@ -10,7 +10,7 @@ from .._logging import print_warning
 
 from . import TemplateVariables
 
-def post_process_vars(
+def pre_process_vars(
         vars:                          TemplateVariables,
         vars_processor_module_locator: str,
         vars_processor_function_name:  str,
@@ -25,7 +25,7 @@ def post_process_vars(
     if not callable(vars_processor_function):
         raise InvalidVarsProcessorInterface(vars_processor_module_locator, vars_processor_function_name)
 
-    print(f'Post-processing template variables dictionary using {vars_processor_module.__name__}.{vars_processor_function_name}()')
+    print(f'Pre-processing template variables dictionary using {vars_processor_module.__name__}.{vars_processor_function_name}()')
     progress_listener.on_stage_started(Stage.VARS_PROCESSING)
     try:
         vars_processor_function(vars)
