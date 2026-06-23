@@ -8,6 +8,7 @@ import glob
 import yaml
 
 from ..timing import Stage, ProgressListener, NullProgressListener
+from ..exceptions import NoVarsFilesMatchedError
 from .._logging import print_warning
 
 from . import TemplateVariables
@@ -22,11 +23,18 @@ _VARS_ENCODING = 'utf-8' # This correctly handles UTF-8 with or without BOM for 
 # Interface
 #
 
-def load_vars_from_yaml_files(vars_files_glob: str, jobs_count: int, progress_listener: ProgressListener = NullProgressListener()) -> TemplateVariables:
+def load_vars_from_yaml_files(
+    vars_files_glob:     str,
+    jobs_count:          int,
+    ignore_absent_files: bool             = False,
+    progress_listener:   ProgressListener = NullProgressListener()
+) -> TemplateVariables:
     var_files_paths = glob.glob(vars_files_glob, recursive=True)
     var_files_count = len(var_files_paths)
 
     if var_files_count <= 0:
+        if not ignore_absent_files:
+            raise NoVarsFilesMatchedError(vars_files_glob)
         print_warning(f"warning: {vars_files_glob} didn't match any files; skipping vars loading")
         return TemplateVariables()
 

@@ -18,7 +18,7 @@ from .. import (
     TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, pre_process_vars,
     render_dir, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
 )
-from ..exceptions import ModuleExecutionException, InvalidVarsProcessorInterface
+from ..exceptions import ModuleExecutionException, InvalidVarsProcessorInterface, NoVarsFilesMatchedError
 from ..timing import Stage, StageRuntimeReporter
 from .._logging import set_color_disabled, set_verbose, is_verbose, print_success, print_verbose, print_warning, print_error
 from .junit import IS_JUNIT_AVAILABLE, JunitReport, write_junit_report_to_xml_file
@@ -33,8 +33,9 @@ Renders all Jinja templates in a directory into files in another directory, pres
 Templates must use UTF-8 (with or without BOM), rendered files will reflect their source templates' BOM or lack thereof.
 """
 
-_VARS_PROCESSOR_MODULE_ARG   = '--vars-processor'
-_VARS_PROCESSOR_FUNCTION_ARG = '--vars-processor-func'
+_IGNORE_ABSENT_VARS_FILES_ARG = '--ignore-absent-vars-files'
+_VARS_PROCESSOR_MODULE_ARG    = '--vars-processor'
+_VARS_PROCESSOR_FUNCTION_ARG  = '--vars-processor-func'
 
 _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME = 'process_vars'
 
@@ -55,8 +56,12 @@ def _make_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument('target_path', metavar='TARGET_PATH', type=Path, help='target root directory for rendered files')
 
     parser.add_argument('--skip', dest='skip_glob', metavar='SKIP_GLOB', type=str, help='glob for template files to skip when rendering (relative to SOURCE_PATH)')
-    parser.add_argument('--vars', dest='vars_glob', metavar='VARS_YAML_GLOB', type=str, help='YAML file(s) containing template variable definitions')
 
+    parser.add_argument('--vars', dest='vars_glob', metavar='VARS_YAML_GLOB', type=str, help='YAML file(s) containing template variable definitions')
+    parser.add_argument(
+        _IGNORE_ABSENT_VARS_FILES_ARG, action='store_true', dest='ignore_absent_vars_files',
+        help='proceed with no variables instead of failing when --vars matches no files'
+    )
     parser.add_argument(
         _VARS_PROCESSOR_MODULE_ARG, dest='vars_processor_module_locator', metavar='VARS_PROCESSOR_MODULE', type=str, help='Python file/module to use for variables dictionary pre-processing'
     )
@@ -176,9 +181,11 @@ class _MainContext:
         print_warning(f"warning: Interrupted by the user{f' ({added_note})' if added_note is not None else ''}")
         self.__exit_with_code(_MainExitCode.INTERRUPTED)
 
-    def on_vars_loading_error(self, error: str) -> NoReturn:
+    def on_vars_loading_error(self, error: str, hint: str | None = None) -> NoReturn:
         self.__vars_loading_error = error
         print_error(error)
+        if hint is not None:
+            print(hint)
         self.__exit_with_code(_MainExitCode.VARS_LOADING_FAILED)
 
     def on_vars_processing_error(self, error: str, hint: str | None = None) -> NoReturn:
@@ -383,9 +390,13 @@ def main():
     atexit.register(lambda: stage_time_reporter.log_summary())
 
     try:
-        vars = load_vars_from_yaml_files(args.vars_glob, config.effective_jobs_count, stage_time_reporter) if args.vars_glob is not None else TemplateVariables()
+        vars = load_vars_from_yaml_files(
+            args.vars_glob, config.effective_jobs_count, ignore_absent_files=args.ignore_absent_vars_files, progress_listener=stage_time_reporter
+        ) if args.vars_glob is not None else TemplateVariables()
     except KeyboardInterrupt:
         context.on_user_interruption()
+    except NoVarsFilesMatchedError as e:
+        context.on_vars_loading_error(f"error: {e}", f'hint: pass {_IGNORE_ABSENT_VARS_FILES_ARG} if this should be allowed')
     except BaseException as e:
         context.on_vars_loading_error('\n'.join(traceback.format_exception_only(e)))
 
