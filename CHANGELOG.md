@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `post_process_vars` to `pre_process_vars`.
 - Generally resolved vars pre-/post-processing terminology ambiguity in favor of "pre-processing" - across the codebase and CLI output, including `--help`.
 - A `--vars` glob that matches no files is now treated as an error, unless an explicit `--ignore-absent-vars-files` CLI argument is given.
+- The tool now exits with an error if `SOURCE_PATH` does not exist or is not a directory.
+- A warning is now logged if `TARGET_PATH` does not exist. (It will still get created in the absence of `--check`.)
 
 ## [1.0.0-rc.2][1.0.0-rc.2] - 2026-06-22
 

@@ -142,6 +142,7 @@ class _MainExitCode(int, Enum):
     VARS_PROCESSING_FAILED = 3
     JINJA_RENDER_ERRORS    = 4
     VERIFICATION_FAILED    = 5
+    INVALID_SOURCE_PATH    = 6
     INTERRUPTED            = _SIGNAL_EXIT_CODE_OFFSET + signal.SIGINT
 
     @staticmethod
@@ -180,6 +181,10 @@ class _MainContext:
         atexit.unregister(self.__write_junit_xml_report)
         print_warning(f"warning: Interrupted by the user{f' ({added_note})' if added_note is not None else ''}")
         self.__exit_with_code(_MainExitCode.INTERRUPTED)
+
+    def on_invalid_source_path(self, source_path: Path) -> NoReturn:
+        print_error(f"error: Source path {source_path} does not exist or is not a directory")
+        self.__exit_with_code(_MainExitCode.INVALID_SOURCE_PATH)
 
     def on_vars_loading_error(self, error: str, hint: str | None = None) -> NoReturn:
         self.__vars_loading_error = error
@@ -371,6 +376,13 @@ def main():
     config              = _make_render_config_from_args(args)
     stage_time_reporter = StageRuntimeReporter(args.is_verbose)
     context             = _MainContext(args, stage_time_reporter)
+
+    if not args.source_path.is_dir():
+        context.on_invalid_source_path(args.source_path)
+    # TODO: Also handle the case where TARGET_PATH exists _but_ is not a directory!
+
+    if not args.target_path.exists():
+        print_warning(f"warning: Target path {args.target_path} does not exist{' (will be created)' if args.mode == _Mode.WRITING else ''}")
 
     must_diff = args.diff_path is not None
     if args.mode == _Mode.VERIFICATION:
