@@ -16,7 +16,7 @@ from ..extensions import ErrorExtension
 from ..timing import Stage, ProgressListener, NullProgressListener
 from .._vars import TemplateVariables
 from .._vars.loading import inject_service_var
-from .._logging import print_verbose, print_warning, print_error
+from .._logging import print_verbose_success, print_warning, print_error
 from .ipc import TemplateVariablesTransport, make_template_variables_transport
 
 #
@@ -189,7 +189,7 @@ def render_dir(
 
     def job_success_callback(template_result: _RenderTemplateResult):
         result.rendered_templates_count += 1
-        print_verbose(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
+        print_verbose_success(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
         if render_result_observer is not None:
             render_result_observer(template_result.target_file_path, template_result.render_handler_result)
 

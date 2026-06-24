@@ -11,6 +11,7 @@ class _AnsiColor(str, Enum):
     RED     = '\033[31m'
     GREEN   = '\033[32m'
     YELLOW  = '\033[33m'
+    BLUE    = '\033[34m'
 
 #
 # Globals
@@ -37,6 +38,10 @@ def is_verbose() -> bool:
 
 def print_success(*args, **kwargs):
     _print_in_color(_AnsiColor.GREEN, *args, **kwargs)
+
+def print_verbose_success(*args, **kwargs):
+    if _is_verbose:
+        _print_in_color(_AnsiColor.BLUE, *args, **kwargs)
 
 def print_verbose(*args, **kwargs):
     if _is_verbose:

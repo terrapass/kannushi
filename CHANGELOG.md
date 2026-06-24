@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A warning is now logged if `TARGET_PATH` does not exist. (It will still get created in the absence of `--check`.)
 - A warning is now logged and the tool exits early when `SOURCE_PATH` contains no (non-skipped) templates.
 - The tool will no longer spawn more render worker processes than there are templates to render, regardless of `--jobs`.
+- Verbose per-file render times are now printed in blue.
 
 ## [1.0.0-rc.2][1.0.0-rc.2] - 2026-06-22
 
