@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generally resolved vars pre-/post-processing terminology ambiguity in favor of "pre-processing" - across the codebase and CLI output, including `--help`.
 - A `--vars` glob that matches no files is now treated as an error, unless an explicit `--ignore-absent-vars-files` CLI argument is given.
 - The tool now exits with an error if `SOURCE_PATH` does not exist or is not a directory.
+- The tool now exits with an error if `TARGET_PATH` is a regular file.
 - A warning is now logged if `TARGET_PATH` does not exist. (It will still get created in the absence of `--check`.)
 - A warning is now logged and the tool exits early when `SOURCE_PATH` contains no (non-skipped) templates.
 - The tool will no longer spawn more render worker processes than there are templates to render, regardless of `--jobs`.

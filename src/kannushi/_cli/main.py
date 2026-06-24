@@ -143,6 +143,7 @@ class _MainExitCode(int, Enum):
     JINJA_RENDER_ERRORS    = 4
     VERIFICATION_FAILED    = 5
     INVALID_SOURCE_PATH    = 6
+    NONDIR_TARGET_PATH     = 7
     INTERRUPTED            = _SIGNAL_EXIT_CODE_OFFSET + signal.SIGINT
 
     @staticmethod
@@ -185,6 +186,10 @@ class _MainContext:
     def on_invalid_source_path(self, source_path: Path) -> NoReturn:
         print_error(f"error: Source path {source_path} does not exist or is not a directory")
         self.__exit_with_code(_MainExitCode.INVALID_SOURCE_PATH)
+
+    def on_non_directory_target_path(self, target_path: Path) -> NoReturn:
+        print_error(f"error: Target path {target_path} already exists but is not a directory")
+        self.__exit_with_code(_MainExitCode.NONDIR_TARGET_PATH)
 
     def on_vars_loading_error(self, error: str, hint: str | None = None) -> NoReturn:
         self.__vars_loading_error = error
@@ -379,10 +384,11 @@ def main():
 
     if not args.source_path.is_dir():
         context.on_invalid_source_path(args.source_path)
-    # TODO: Also handle the case where TARGET_PATH exists _but_ is not a directory!
 
     if not args.target_path.exists():
         print_warning(f"warning: Target path {args.target_path} does not exist{' (will be created)' if args.mode == _Mode.WRITING else ''}")
+    elif not args.target_path.is_dir():
+        context.on_non_directory_target_path(args.target_path)
 
     must_diff = args.diff_path is not None
     if args.mode == _Mode.VERIFICATION:
