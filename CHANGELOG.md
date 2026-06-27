@@ -5,7 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Added
+
+- Single-template mode: `SOURCE_PATH` and `TARGET_PATH` may now be regular files, rendering one template to one output file. The source file may have any name; in this mode `--skip` is still honored (the file is skipped if it matches). If `TARGET_PATH` already exists, its kind (file vs. directory) must match `SOURCE_PATH`'s.
+- Package API now exposes `render` and `validate_render_paths`, and the `RenderPathError`, `InvalidSourcePathError` and `TargetPathKindMismatchError` exceptions (in `kannushi.exceptions`).
+
+### Changed
+
+- The public `render_dir` function has been replaced by a unified `render`, which validates the source/target paths and then renders either a single file or a directory tree.
+- A `TARGET_PATH` that already exists with a kind not matching `SOURCE_PATH` (e.g. a file target for a directory source) is now reported with a dedicated error, generalizing the previous "target is not a directory" check.
+- If there is only a single template to render, it is now rendered directly without spawning parallel render workers.
+
+### Removed
+
+- The public `render_dir` function and `RenderDirResult` type (replaced by `render` and `RenderResult` respectively).
 
 ## [1.0.0-rc.3][1.0.0-rc.3] - 2026-06-24
 

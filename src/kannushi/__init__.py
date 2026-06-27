@@ -9,10 +9,11 @@ __all__ = [
     "RenderHandler",
     "RenderResultObserver",
     "RenderConfig",
-    "RenderDirResult",
+    "RenderResult",
     "writing_render_handler",
     "composite_render_pipeline",
-    "render_dir",
+    "validate_render_paths",
+    "render",
     "TargetFileStatus",
     "TargetDiff",
     "DiffRenderResultObserver",
@@ -28,7 +29,7 @@ from ._vars import TemplateVariables
 from ._vars.loading import load_vars_from_yaml_files
 from ._vars.pre_processing import pre_process_vars
 from ._rendering import (
-    RenderTemplateContext, RenderHandler, RenderResultObserver, RenderConfig, RenderDirResult,
-    writing_render_handler, composite_render_pipeline, render_dir
+    RenderTemplateContext, RenderHandler, RenderResultObserver, RenderConfig, RenderResult,
+    writing_render_handler, composite_render_pipeline, validate_render_paths, render
 )
 from ._diff import TargetFileStatus, TargetDiff, DiffRenderResultObserver, make_diff_render_pipeline_step

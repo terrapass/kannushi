@@ -3,10 +3,11 @@ __all__ = [
     "RenderHandler",
     "RenderResultObserver",
     "RenderConfig",
-    "RenderDirResult",
+    "RenderResult",
     "writing_render_handler",
     "composite_render_pipeline",
-    "render_dir"
+    "validate_render_paths",
+    "render"
 ]
 
 #
@@ -14,6 +15,6 @@ __all__ = [
 #
 
 from .core import (
-    RenderTemplateContext, RenderHandler, RenderResultObserver, RenderConfig, RenderDirResult,
-    writing_render_handler, composite_render_pipeline, render_dir
+    RenderTemplateContext, RenderHandler, RenderResultObserver, RenderConfig, RenderResult,
+    writing_render_handler, composite_render_pipeline, validate_render_paths, render
 )

@@ -39,6 +39,17 @@ uv tool install kannushi
 
 Expanding on the basic example above, let's look at some of **kannushi**'s other features.
 
+### Single-Template Mode
+
+Source and target paths can also be regular files, in which case **kannushi** renders one template into one output file:
+```sh
+kannushi --vars "config/**/*.yml" single_file.ext.jinja single_file.ext
+```
+
+Note that if the target path already exists, its kind must match the source path's — a file source requires a file target, and a directory source a directory target.
+
+All features described below (`--check`, `--diff` etc.) work the same whether **kannushi** was called with individual files or directories.
+
 ### `--check` Mode
 
 **kannushi** can be run in read-only verification mode by adding `--check` to its command line arguments.
@@ -108,12 +119,14 @@ usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
                 SOURCE_PATH TARGET_PATH
 
 Renders all Jinja templates in a directory into files in another directory, preserving the folder
-structure. Templates must use UTF-8 (with or without BOM), rendered files will reflect their
-source templates' BOM or lack thereof.
+structure. SOURCE_PATH and TARGET_PATH may also be regular files, in which case one template is
+rendered into one output file. Templates must use UTF-8 (with or without BOM), rendered files will
+reflect their source templates' BOM or lack thereof.
 
 positional arguments:
-  SOURCE_PATH           root directory containing Jinja templates
-  TARGET_PATH           target root directory for rendered files
+  SOURCE_PATH           EITHER directory containing Jinja templates OR a single Jinja
+                        template file
+  TARGET_PATH           EITHER target directory for rendered files OR the target file
 
 options:
   -h, --help            show this help message and exit

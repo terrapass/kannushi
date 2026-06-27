@@ -13,6 +13,7 @@ from timeit import default_timer
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from ..extensions import ErrorExtension
+from ..exceptions import InvalidSourcePathError, TargetPathKindMismatchError
 from ..timing import Stage, ProgressListener, NullProgressListener
 from .._vars import TemplateVariables
 from .._vars.loading import inject_service_var
@@ -86,7 +87,7 @@ class RenderConfig:
         return jobs_count
 
 @dataclass
-class RenderDirResult:
+class RenderResult:
     selected_templates_count:    int                       = 0
     rendered_templates_count:    int                       = 0
     errors_by_target_file_path:  dict[Path, BaseException] = field(default_factory=dict)
@@ -158,20 +159,54 @@ def composite_render_pipeline(
 
     return (_CompositeRenderHandler(handlers), composite_observer)
 
-def render_dir(
+def validate_render_paths(config: RenderConfig) -> None:
+    source_is_dir  = config.source_path.is_dir()
+    source_is_file = config.source_path.is_file()
+    if not source_is_dir and not source_is_file:
+        raise InvalidSourcePathError(config.source_path)
+    if config.target_path.exists():
+        if source_is_dir and not config.target_path.is_dir():
+            raise TargetPathKindMismatchError(config.source_path, config.target_path, source_is_dir=True)
+        if source_is_file and not config.target_path.is_file():
+            raise TargetPathKindMismatchError(config.source_path, config.target_path, source_is_dir=False)
+
+def render(
     config:                 RenderConfig,
     vars:                   TemplateVariables,
     render_handler:         RenderHandler               = writing_render_handler,
     render_result_observer: RenderResultObserver | None = None,
     progress_listener:      ProgressListener            = NullProgressListener()
-) -> RenderDirResult:
+) -> RenderResult:
+    validate_render_paths(config)
+    if config.source_path.is_file():
+        return _render_file(config, vars, render_handler, render_result_observer, progress_listener)
+    return _render_dir(config, vars, render_handler, render_result_observer, progress_listener)
+
+#
+# Service
+#
+
+def _render_dir(
+    config:                 RenderConfig,
+    vars:                   TemplateVariables,
+    render_handler:         RenderHandler,
+    render_result_observer: RenderResultObserver | None,
+    progress_listener:      ProgressListener
+) -> RenderResult:
     templates_paths = config.source_path.glob(_TEMPLATE_GLOB)
     skipped_paths   = config.source_path.glob(config.skip_glob) if config.skip_glob is not None else []
     selected_paths  = [template_path for template_path in templates_paths if template_path not in skipped_paths]
 
     if len(selected_paths) <= 0:
-        print_warning(f"warning: No{' (non-skipped)' if config.skip_glob is not None else ''} templates to render in {config.source_path}", file=stdout)
-        return RenderDirResult()
+        return _handle_no_templates_to_render(config.source_path, config.skip_glob)
+
+    if len(selected_paths) == 1:
+        template_path                     = selected_paths[0]
+        (template_name, target_file_path) = _convert_template_path(config.source_path, config.target_path, template_path)
+        return _render_single_template(
+            progress_listener, config.source_path, template_name, template_path, config.target_path, target_file_path,
+            vars, render_handler, render_result_observer, config.random_seed
+        )
 
     current_stage = None
     def change_stage(stage: Stage | None, current_stage_errors_count: int = 0, was_interrupted: bool = False):
@@ -188,19 +223,13 @@ def render_dir(
     change_stage(Stage.RENDER_POOL_INIT)
 
     def job_success_callback(template_result: _RenderTemplateResult):
-        result.rendered_templates_count += 1
-        print_verbose_success(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
-        if render_result_observer is not None:
-            render_result_observer(template_result.target_file_path, template_result.render_handler_result)
+        _on_template_render_success(result, template_result, render_result_observer)
 
     def job_error_callback(template_path: Path, e: BaseException):
         (_, target_file_path) = _convert_template_path(config.source_path, config.target_path, template_path)
-        assert target_file_path not in result.errors_by_target_file_path
-        result.errors_by_target_file_path[target_file_path] = e
-        print_error(f'[ERROR] {target_file_path}')
-        print_error(f'\terror: {e}')
+        _on_template_render_error(result, target_file_path, e)
 
-    result = RenderDirResult()
+    result = RenderResult()
     result.selected_templates_count = len(selected_paths)
     with make_template_variables_transport(vars) as vars_transport:
         with Pool(actual_jobs_count, _init_render_template_process, (config.source_path, vars_transport)) as process_pool:
@@ -231,22 +260,82 @@ def render_dir(
 
     return result
 
-#
-# Service
-#
+def _render_file(
+    config:                 RenderConfig,
+    vars:                   TemplateVariables,
+    render_handler:         RenderHandler,
+    render_result_observer: RenderResultObserver | None,
+    progress_listener:      ProgressListener
+) -> RenderResult:
+    if config.skip_glob is not None and config.source_path.match(config.skip_glob):
+        return _handle_no_templates_to_render(config.source_path, config.skip_glob)
+
+    return _render_single_template(
+        progress_listener, config.source_path.parent, config.source_path.name, config.source_path,
+        config.target_path.parent, config.target_path, vars, render_handler, render_result_observer, config.random_seed
+    )
+
+def _render_single_template(
+    progress_listener:      ProgressListener,
+    source_root:            Path,
+    template_name:          str,
+    template_path:          Path,
+    target_dir_path:        Path,
+    target_file_path:       Path,
+    vars:                   TemplateVariables,
+    render_handler:         RenderHandler,
+    render_result_observer: RenderResultObserver | None,
+    random_seed:            int | None
+) -> RenderResult:
+    result = RenderResult()
+    result.selected_templates_count = 1
+
+    progress_listener.on_stage_started(Stage.JINJA_RENDER)
+    try:
+        template_result = _render_template(
+            _make_jinja_env(source_root), vars, template_path, template_name, target_dir_path, target_file_path, render_handler, random_seed
+        )
+    except KeyboardInterrupt:
+        result.was_interrupted = True
+    except Exception as e:
+        _on_template_render_error(result, target_file_path, e)
+    else:
+        _on_template_render_success(result, template_result, render_result_observer)
+    progress_listener.on_stage_ended(Stage.JINJA_RENDER, result.errors_count, result.was_interrupted)
+
+    return result
+
+def _handle_no_templates_to_render(source_path: Path, skip_glob: str | None) -> RenderResult:
+    print_warning(f"warning: No{' (non-skipped)' if skip_glob is not None else ''} templates to render in {source_path}", file=stdout)
+    return RenderResult()
+
+def _on_template_render_success(result: RenderResult, template_result: _RenderTemplateResult, render_result_observer: RenderResultObserver | None):
+    result.rendered_templates_count += 1
+    print_verbose_success(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
+    if render_result_observer is not None:
+        render_result_observer(template_result.target_file_path, template_result.render_handler_result)
+
+def _on_template_render_error(result: RenderResult, target_file_path: Path, error: BaseException):
+    assert target_file_path not in result.errors_by_target_file_path
+    result.errors_by_target_file_path[target_file_path] = error
+    print_error(f'[ERROR] {target_file_path}')
+    print_error(f'\terror: {error}')
+
+def _make_jinja_env(source_root: Path) -> Environment:
+    return Environment(
+        loader=FileSystemLoader(source_root, encoding=SOURCE_ENCODING),
+        extensions=['jinja2.ext.do', ErrorExtension],
+        autoescape=False,
+        undefined=StrictUndefined
+    )
 
 def _init_render_template_process(source_path: Path, vars_transport: TemplateVariablesTransport):
     # Prevent Ctrl-C from raising KeyboardInterrupt in child processes
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     global _jinja_env, _vars
-    _jinja_env = Environment(
-        loader=FileSystemLoader(source_path, encoding=SOURCE_ENCODING),
-        extensions=['jinja2.ext.do', ErrorExtension],
-        autoescape=False,
-        undefined=StrictUndefined
-    )
-    _vars = vars_transport.retrieve_vars()
+    _jinja_env = _make_jinja_env(source_path)
+    _vars      = vars_transport.retrieve_vars()
 
 def _render_template_job(config: RenderConfig, template_path: Path, render_handler: RenderHandler) -> _RenderTemplateResult:
     """This function is the entry point for individual template rendering jobs run in parallel"""
@@ -254,22 +343,36 @@ def _render_template_job(config: RenderConfig, template_path: Path, render_handl
     assert isinstance(_jinja_env, Environment)
     assert isinstance(_vars, dict)
 
-    render_start_time_seconds = default_timer()
-
     (template_name, target_file_path) = _convert_template_path(config.source_path, config.target_path, template_path)
 
-    inject_service_var(_vars, _TEMPLATE_PATH_VAR, _replace_backslashes(template_path))
+    return _render_template(
+        _jinja_env, _vars, template_path, template_name, config.target_path, target_file_path, render_handler, config.random_seed
+    )
+
+def _render_template(
+    jinja_env:        Environment,
+    vars:             TemplateVariables,
+    template_path:    Path,
+    template_name:    str,
+    target_dir_path:  Path,
+    target_file_path: Path,
+    render_handler:   RenderHandler,
+    random_seed:      int | None
+) -> _RenderTemplateResult:
+    render_start_time_seconds = default_timer()
+
+    inject_service_var(vars, _TEMPLATE_PATH_VAR, _replace_backslashes(template_path))
     try:
-        random.seed(config.random_seed)
-        rendered_content      = _render_template(_jinja_env, template_name, _vars)
-        context               = RenderTemplateContext(template_path, config.target_path, target_file_path, rendered_content)
+        random.seed(random_seed)
+        rendered_content      = _render_template_impl(jinja_env, template_name, vars)
+        context               = RenderTemplateContext(template_path, target_dir_path, target_file_path, rendered_content)
         render_handler_result = render_handler(context)
     finally:
-        del _vars[_TEMPLATE_PATH_VAR]
+        del vars[_TEMPLATE_PATH_VAR]
 
     return _RenderTemplateResult(target_file_path, default_timer() - render_start_time_seconds, render_handler_result)
 
-def _render_template(jinja_env: Environment, template_name: str, vars: dict) -> str:
+def _render_template_impl(jinja_env: Environment, template_name: str, vars: dict) -> str:
     template = jinja_env.get_template(template_name)
     return template.render(vars)
 

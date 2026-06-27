@@ -15,10 +15,13 @@ from io import TextIOWrapper
 import yaml
 
 from .. import (
-    TemplateVariables, RenderConfig, RenderDirResult, TargetFileStatus, load_vars_from_yaml_files, pre_process_vars,
-    render_dir, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
+    TemplateVariables, RenderConfig, RenderResult, TargetFileStatus, load_vars_from_yaml_files, pre_process_vars,
+    render, validate_render_paths, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
 )
-from ..exceptions import ModuleExecutionException, InvalidVarsProcessorInterface, NoVarsFilesMatchedError
+from ..exceptions import (
+    ModuleExecutionException, InvalidVarsProcessorInterface, NoVarsFilesMatchedError,
+    InvalidSourcePathError, TargetPathKindMismatchError
+)
 from ..timing import Stage, StageRuntimeReporter
 from .._logging import set_color_disabled, set_verbose, is_verbose, print_success, print_verbose, print_warning, print_error
 from .junit import IS_JUNIT_AVAILABLE, JunitReport, write_junit_report_to_xml_file
@@ -30,6 +33,7 @@ from .junit import IS_JUNIT_AVAILABLE, JunitReport, write_junit_report_to_xml_fi
 _PROGRAM_NAME    = 'kannushi'
 _CLI_DESCRIPTION = """
 Renders all Jinja templates in a directory into files in another directory, preserving the folder structure.
+SOURCE_PATH and TARGET_PATH may also be regular files, in which case one template is rendered into one output file.
 Templates must use UTF-8 (with or without BOM), rendered files will reflect their source templates' BOM or lack thereof.
 """
 
@@ -52,8 +56,8 @@ _DIFF_ENCODING = 'utf-8'
 def _make_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog=_PROGRAM_NAME, description=_CLI_DESCRIPTION)
 
-    parser.add_argument('source_path', metavar='SOURCE_PATH', type=Path, help='root directory containing Jinja templates')
-    parser.add_argument('target_path', metavar='TARGET_PATH', type=Path, help='target root directory for rendered files')
+    parser.add_argument('source_path', metavar='SOURCE_PATH', type=Path, help='EITHER directory containing Jinja templates OR a single Jinja template file')
+    parser.add_argument('target_path', metavar='TARGET_PATH', type=Path, help='EITHER target directory for rendered files OR the target file')
 
     parser.add_argument('--skip', dest='skip_glob', metavar='SKIP_GLOB', type=str, help='glob for template files to skip when rendering (relative to SOURCE_PATH)')
 
@@ -143,14 +147,14 @@ class _MainExitCode(int, Enum):
     JINJA_RENDER_ERRORS    = 4
     VERIFICATION_FAILED    = 5
     INVALID_SOURCE_PATH    = 6
-    NONDIR_TARGET_PATH     = 7
+    PATH_KIND_MISMATCH     = 7
     INTERRUPTED            = _SIGNAL_EXIT_CODE_OFFSET + signal.SIGINT
 
     @staticmethod
-    def from_results(render_dir_result: RenderDirResult, verification_result: _VerificationResult | None) -> "_MainExitCode":
-        if render_dir_result.was_interrupted:
+    def from_results(render_result: RenderResult, verification_result: _VerificationResult | None) -> "_MainExitCode":
+        if render_result.was_interrupted:
             return _MainExitCode.INTERRUPTED
-        if render_dir_result.errors_count > 0:
+        if render_result.errors_count > 0:
             return _MainExitCode.JINJA_RENDER_ERRORS
         if verification_result is not None and not verification_result.is_successful:
             return _MainExitCode.VERIFICATION_FAILED
@@ -165,7 +169,7 @@ class _MainContext:
         self.__stage_time_reporter                               = stage_time_reporter
         self.__vars_loading_error:    str | None                 = None
         self.__vars_processing_error: str | None                 = None
-        self.__render_dir_result:     RenderDirResult | None     = None
+        self.__render_result:         RenderResult | None        = None
         self.__verification_result:   _VerificationResult | None = None
         self.__unified_diff:          str | None                 = None
         if args.log_yaml_path is not None:
@@ -183,13 +187,13 @@ class _MainContext:
         print_warning(f"warning: Interrupted by the user{f' ({added_note})' if added_note is not None else ''}")
         self.__exit_with_code(_MainExitCode.INTERRUPTED)
 
-    def on_invalid_source_path(self, source_path: Path) -> NoReturn:
-        print_error(f"error: Source path {source_path} does not exist or is not a directory")
+    def on_invalid_source_path(self, error: InvalidSourcePathError) -> NoReturn:
+        print_error(f"error: {error}")
         self.__exit_with_code(_MainExitCode.INVALID_SOURCE_PATH)
 
-    def on_non_directory_target_path(self, target_path: Path) -> NoReturn:
-        print_error(f"error: Target path {target_path} already exists but is not a directory")
-        self.__exit_with_code(_MainExitCode.NONDIR_TARGET_PATH)
+    def on_target_path_kind_mismatch(self, error: TargetPathKindMismatchError) -> NoReturn:
+        print_error(f"error: {error}")
+        self.__exit_with_code(_MainExitCode.PATH_KIND_MISMATCH)
 
     def on_vars_loading_error(self, error: str, hint: str | None = None) -> NoReturn:
         self.__vars_loading_error = error
@@ -205,11 +209,11 @@ class _MainContext:
             print(hint)
         self.__exit_with_code(_MainExitCode.VARS_PROCESSING_FAILED)
 
-    def finish_with_results(self, render_dir_result: RenderDirResult, verification_result: _VerificationResult | None, unified_diff: str | None) -> NoReturn:
-        self.__render_dir_result   = render_dir_result
+    def finish_with_results(self, render_result: RenderResult, verification_result: _VerificationResult | None, unified_diff: str | None) -> NoReturn:
+        self.__render_result   = render_result
         self.__verification_result = verification_result
         self.__unified_diff        = unified_diff
-        self.__exit_with_code(_MainExitCode.from_results(self.__render_dir_result, self.__verification_result))
+        self.__exit_with_code(_MainExitCode.from_results(self.__render_result, self.__verification_result))
 
     def __exit_with_code(self, exit_code: _MainExitCode) -> NoReturn:
         self.__exit_code = exit_code
@@ -244,7 +248,7 @@ class _MainContext:
                 vars_processing_requested = self.__args.vars_processor_module_locator is not None,
                 vars_processing_error     = self.__vars_processing_error,
                 vars_processing_elapsed   = self.__stage_time_reporter.stage_time_seconds(Stage.VARS_PROCESSING),
-                render_result             = self.__render_dir_result,
+                render_result             = self.__render_result,
                 render_elapsed            = self.__stage_time_reporter.stage_time_seconds(Stage.JINJA_RENDER),
                 verification_result       = self.__verification_result,
             )
@@ -263,7 +267,7 @@ class _MainContext:
             "input":                 self.__input_to_log_dict(),
             "vars_loading_error":    self.__vars_loading_error,
             "vars_processing_error": self.__vars_processing_error,
-            "render":                self.__render_dir_result_to_log_dict(),
+            "render":                self.__render_result_to_log_dict(),
             "verification":          self.__verification_result_to_log_dict(),
         }
 
@@ -277,17 +281,17 @@ class _MainContext:
             "vars_processor_func": self.__args.vars_processor_function_name if self.__args.vars_processor_module_locator is not None else None,
         }
 
-    def __render_dir_result_to_log_dict(self) -> dict | None:
-        if self.__render_dir_result is None:
+    def __render_result_to_log_dict(self) -> dict | None:
+        if self.__render_result is None:
             return None
         return {
-            "is_successful":            self.__render_dir_result.is_successful,
-            "selected_templates_count": self.__render_dir_result.selected_templates_count,
-            "rendered_templates_count": self.__render_dir_result.rendered_templates_count,
-            "skipped_count":            self.__render_dir_result.skipped_count,
-            "errors_count":             self.__render_dir_result.errors_count,
+            "is_successful":            self.__render_result.is_successful,
+            "selected_templates_count": self.__render_result.selected_templates_count,
+            "rendered_templates_count": self.__render_result.rendered_templates_count,
+            "skipped_count":            self.__render_result.skipped_count,
+            "errors_count":             self.__render_result.errors_count,
             "render_errors": [
-                {"path": str(path), "error": str(error)} for path, error in self.__render_dir_result.errors_by_target_file_path.items()
+                {"path": str(path), "error": str(error)} for path, error in self.__render_result.errors_by_target_file_path.items()
             ]
         }
 
@@ -322,7 +326,7 @@ def _try_select_multiprocessing_start_method():
     if sys_platform.startswith('linux') and 'fork' in multiprocessing.get_all_start_methods():
         multiprocessing.set_start_method('fork', force=True) # avoids pickling vars for Jinja render pool
 
-def _try_log_verification_result(verification_result: _VerificationResult | None, render_result: RenderDirResult):
+def _try_log_verification_result(verification_result: _VerificationResult | None, render_result: RenderResult):
     assert not render_result.was_interrupted
     if verification_result is None:
         return
@@ -382,13 +386,15 @@ def main():
     stage_time_reporter = StageRuntimeReporter(args.is_verbose)
     context             = _MainContext(args, stage_time_reporter)
 
-    if not args.source_path.is_dir():
-        context.on_invalid_source_path(args.source_path)
+    try:
+        validate_render_paths(config)
+    except InvalidSourcePathError as e:
+        context.on_invalid_source_path(e)
+    except TargetPathKindMismatchError as e:
+        context.on_target_path_kind_mismatch(e)
 
     if not args.target_path.exists():
         print_warning(f"warning: Target path {args.target_path} does not exist{' (will be created)' if args.mode == _Mode.WRITING else ''}")
-    elif not args.target_path.is_dir():
-        context.on_non_directory_target_path(args.target_path)
 
     must_diff = args.diff_path is not None
     if args.mode == _Mode.VERIFICATION:
@@ -444,7 +450,7 @@ def main():
     elif args.vars_processor_function_name != _DEFAULT_VARS_PROCESSOR_FUNCTION_NAME:
         print_warning(f"warning: Ignoring {_VARS_PROCESSOR_FUNCTION_ARG} in the absence of {_VARS_PROCESSOR_MODULE_ARG}")
 
-    render_result = render_dir(config, vars, render_handler, render_result_observer, progress_listener=stage_time_reporter)
+    render_result = render(config, vars, render_handler, render_result_observer, progress_listener=stage_time_reporter)
 
     verification_result = None
     if args.mode == _Mode.VERIFICATION:

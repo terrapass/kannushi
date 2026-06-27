@@ -2,7 +2,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .._rendering import RenderDirResult
+from .._rendering import RenderResult
 
 if TYPE_CHECKING:
     from .main import _VerificationResult
@@ -35,7 +35,7 @@ class JunitReport:
     vars_processing_requested: bool                         = False
     vars_processing_error:     str | None                   = None
     vars_processing_elapsed:   float | None                 = None
-    render_result:             RenderDirResult | None       = None
+    render_result:             RenderResult | None          = None
     render_elapsed:            float | None                 = None
     verification_result:       "_VerificationResult | None" = None
 
@@ -144,7 +144,7 @@ def _make_test_case(name: str, elapsed_sec: float | None):
     assert junit_xml is not None
     return junit_xml.TestCase(name, classname=_TEST_CASE_CLASSNAME, elapsed_sec=elapsed_sec)
 
-def _format_render_errors(render_result: RenderDirResult) -> str:
+def _format_render_errors(render_result: RenderResult) -> str:
     return '\n'.join(f"{path}: {error}" for path, error in render_result.errors_by_target_file_path.items())
 
 def _format_paths(paths: list[Path]) -> str:
