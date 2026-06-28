@@ -26,8 +26,7 @@ from .ipc import TemplateVariablesTransport, make_template_variables_transport
 SOURCE_ENCODING = 'utf-8' # Treating both source and rendered content as regular UTF-8 handles BOM correctly.
 TARGET_ENCODING = 'utf-8' #
 
-_TEMPLATE_EXTENSION = '.jinja'
-_TEMPLATE_GLOB      = '**/*' + _TEMPLATE_EXTENSION
+DEFAULT_TEMPLATE_EXTENSION = 'jinja'
 
 _TEMPLATE_PATH_VAR = '_template_path' # Name of the template variable to be set to the currently rendered template's path
 
@@ -70,6 +69,14 @@ class RenderConfig:
     target_path:          Path
     skip_glob:            str | None
     requested_jobs_count: int | None
+    template_extension:   str        = DEFAULT_TEMPLATE_EXTENSION
+
+    def __post_init__(self):
+        self.template_extension = '.' + self.template_extension.lstrip('.')
+
+    @property
+    def template_glob(self) -> str:
+        return '**/*' + self.template_extension
 
     @cached_property
     def effective_jobs_count(self) -> int:
@@ -203,8 +210,8 @@ def _select_renderable_templates(config: RenderConfig) -> tuple[Path, Path, list
     target_dir_path = config.target_path
     skipped_paths   = set(source_root.glob(config.skip_glob)) if config.skip_glob is not None else set()
     renderable_templates = [
-        _RenderableTemplate(template_path, *_convert_template_path(source_root, target_dir_path, template_path))
-        for template_path in source_root.glob(_TEMPLATE_GLOB)
+        _RenderableTemplate(template_path, *_convert_template_path(source_root, target_dir_path, template_path, config.template_extension))
+        for template_path in source_root.glob(config.template_glob)
         if template_path not in skipped_paths
     ]
     return (source_root, target_dir_path, renderable_templates)
@@ -385,9 +392,9 @@ def _render_template_impl(jinja_env: Environment, template_name: str, vars: dict
     template = jinja_env.get_template(template_name)
     return template.render(vars)
 
-def _convert_template_path(source_dir_path: Path, target_dir_path: Path, template_path: Path) -> tuple[str, Path]:
+def _convert_template_path(source_dir_path: Path, target_dir_path: Path, template_path: Path, template_extension: str) -> tuple[str, Path]:
     template_name    = _source_template_path_to_name(source_dir_path, template_path)
-    target_file_path = _template_name_to_target_file_path(target_dir_path, template_name)
+    target_file_path = _template_name_to_target_file_path(target_dir_path, template_name, template_extension)
     return (template_name, target_file_path)
 
 def _source_template_path_to_name(source_dir_path: Path, template_path: Path) -> str:
@@ -396,6 +403,6 @@ def _source_template_path_to_name(source_dir_path: Path, template_path: Path) ->
 def _replace_backslashes(path_str: str | Path) -> str:
     return str(path_str).replace('\\', '/')
 
-def _template_name_to_target_file_path(target_dir_path: Path, template_name: str) -> Path:
-    assert template_name.endswith(_TEMPLATE_EXTENSION)
-    return target_dir_path / template_name[:-len(_TEMPLATE_EXTENSION)]
+def _template_name_to_target_file_path(target_dir_path: Path, template_name: str, template_extension: str) -> Path:
+    assert template_name.endswith(template_extension)
+    return target_dir_path / template_name[:-len(template_extension)]

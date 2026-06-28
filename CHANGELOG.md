@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Single-template mode: `SOURCE_PATH` and `TARGET_PATH` may now be regular files, rendering one template to one output file. The source file may have any name; in this mode `--skip` is still honored (the file is skipped if it matches). If `TARGET_PATH` already exists, its kind (file vs. directory) must match `SOURCE_PATH`'s.
+- Support for the `-e` (`--ext`) CLI argument, which sets the template file extension to look for when `SOURCE_PATH` is a directory (the argument is ignored otherwise). Defaults to `jinja`.
 - Package API now exposes `render` and `validate_render_paths`, and the `RenderPathError`, `InvalidSourcePathError` and `TargetPathKindMismatchError` exceptions (in `kannushi.exceptions`).
+- `RenderConfig` gains a `template_extension` field (defaulting to `jinja`).
 
 ### Changed
 

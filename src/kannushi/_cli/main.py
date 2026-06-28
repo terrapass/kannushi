@@ -15,8 +15,8 @@ from io import TextIOWrapper
 import yaml
 
 from .. import (
-    TemplateVariables, RenderConfig, RenderResult, TargetFileStatus, load_vars_from_yaml_files, pre_process_vars,
-    render, validate_render_paths, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
+    TemplateVariables, RenderConfig, RenderResult, TargetFileStatus, DEFAULT_TEMPLATE_EXTENSION, load_vars_from_yaml_files,
+    pre_process_vars, render, validate_render_paths, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
 )
 from ..exceptions import (
     ModuleExecutionException, InvalidVarsProcessorInterface, NoVarsFilesMatchedError,
@@ -37,6 +37,7 @@ SOURCE_PATH and TARGET_PATH may also be regular files, in which case one templat
 Templates must use UTF-8 (with or without BOM), rendered files will reflect their source templates' BOM or lack thereof.
 """
 
+_EXT_ARG                      = '--ext'
 _IGNORE_ABSENT_VARS_FILES_ARG = '--ignore-absent-vars-files'
 _VARS_PROCESSOR_MODULE_ARG    = '--vars-processor'
 _VARS_PROCESSOR_FUNCTION_ARG  = '--vars-processor-func'
@@ -60,6 +61,11 @@ def _make_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument('target_path', metavar='TARGET_PATH', type=Path, help='EITHER target directory for rendered files OR the target file')
 
     parser.add_argument('--skip', dest='skip_glob', metavar='SKIP_GLOB', type=str, help='glob for template files to skip when rendering (relative to SOURCE_PATH)')
+
+    parser.add_argument(
+        '-e', _EXT_ARG, dest='template_extension', metavar='TEMPLATE_EXT', type=str, default=None,
+        help='file extension used for templates in SOURCE_PATH (defaults to jinja)'
+    )
 
     parser.add_argument('--vars', dest='vars_glob', metavar='VARS_YAML_GLOB', type=str, help='YAML file(s) containing template variable definitions')
     parser.add_argument(
@@ -317,6 +323,7 @@ def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
         target_path=args.target_path,
         skip_glob=args.skip_glob,
         requested_jobs_count=args.jobs_count,
+        template_extension=(args.template_extension or DEFAULT_TEMPLATE_EXTENSION),
     )
 
 def _try_select_multiprocessing_start_method():
@@ -392,6 +399,9 @@ def main():
 
     if not args.target_path.exists():
         print_warning(f"warning: Target path {args.target_path} does not exist{' (will be created)' if args.mode == _Mode.WRITING else ''}")
+
+    if args.template_extension is not None and args.source_path.is_file():
+        print_warning(f"warning: Ignoring {_EXT_ARG} because {args.source_path} is not a directory")
 
     must_diff = args.diff_path is not None
     if args.mode == _Mode.VERIFICATION:

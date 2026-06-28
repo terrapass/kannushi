@@ -5,6 +5,7 @@ __all__ = [
     "TemplateVariables",
     "load_vars_from_yaml_files",
     "pre_process_vars",
+    "DEFAULT_TEMPLATE_EXTENSION",
     "RenderTemplateContext",
     "RenderHandler",
     "RenderResultObserver",
@@ -29,6 +30,7 @@ from ._vars import TemplateVariables
 from ._vars.loading import load_vars_from_yaml_files
 from ._vars.pre_processing import pre_process_vars
 from ._rendering import (
+    DEFAULT_TEMPLATE_EXTENSION,
     RenderTemplateContext, RenderHandler, RenderResultObserver, RenderConfig, RenderResult,
     writing_render_handler, composite_render_pipeline, validate_render_paths, render
 )

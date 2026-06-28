@@ -110,7 +110,7 @@ It's also possible to use `--vars-processor` alone, without `--vars`, provided t
 
 ## Synopsis
 ```
-usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
+usage: kannushi [-h] [--skip SKIP_GLOB] [-e TEMPLATE_EXT] [--vars VARS_YAML_GLOB]
                 [--ignore-absent-vars-files]
                 [--vars-processor VARS_PROCESSOR_MODULE]
                 [--vars-processor-func VARS_PROCESSOR_FUNCTION]
@@ -131,6 +131,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --skip SKIP_GLOB      glob for template files to skip when rendering (relative to SOURCE_PATH)
+  -e, --ext TEMPLATE_EXT
+                        file extension used for templates in SOURCE_PATH (defaults to jinja)
   --vars VARS_YAML_GLOB
                         YAML file(s) containing template variable definitions
   --ignore-absent-vars-files
