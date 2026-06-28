@@ -113,7 +113,7 @@ It's also possible to use `--vars-processor` alone, without `--vars`, provided t
 usage: kannushi [-h] [--skip SKIP_GLOB] [--vars VARS_YAML_GLOB]
                 [--ignore-absent-vars-files]
                 [--vars-processor VARS_PROCESSOR_MODULE]
-                [--vars-processor-func VARS_PROCESSOR_FUNCTION] [--seed RANDOM_SEED]
+                [--vars-processor-func VARS_PROCESSOR_FUNCTION]
                 [-j JOBS_COUNT] [--check] [--log LOG_YAML_PATH] [--diff DIFF_PATH]
                 [-v] [--no-color] [-V]
                 SOURCE_PATH TARGET_PATH
@@ -141,7 +141,6 @@ options:
   --vars-processor-func VARS_PROCESSOR_FUNCTION
                         single-parameter function in VARS_PROCESSOR_MODULE which vars dictionary
                         will be passed to (defaults to process_vars)
-  --seed RANDOM_SEED    RNG seed to use for any randomization within templates
   -j, --jobs JOBS_COUNT
                         max number of parallel jobs (defaults to the number of logical CPU cores)
   --check               check if files under TARGET_PATH are consistent with their

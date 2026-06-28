@@ -74,8 +74,6 @@ def _make_cli_parser() -> argparse.ArgumentParser:
         help=f'single-parameter function in VARS_PROCESSOR_MODULE which vars dictionary will be passed to (defaults to {_DEFAULT_VARS_PROCESSOR_FUNCTION_NAME})'
     )
 
-    parser.add_argument('--seed', dest='random_seed', metavar='RANDOM_SEED', type=int, help='RNG seed to use for any randomization within templates')
-
     parser.add_argument('-j', '--jobs', dest='jobs_count', metavar='JOBS_COUNT', type=int, help='max number of parallel jobs (defaults to the number of logical CPU cores)')
 
     parser.add_argument(
@@ -318,7 +316,6 @@ def _make_render_config_from_args(args: argparse.Namespace) -> RenderConfig:
         source_path=args.source_path,
         target_path=args.target_path,
         skip_glob=args.skip_glob,
-        random_seed=args.random_seed,
         requested_jobs_count=args.jobs_count,
     )
 

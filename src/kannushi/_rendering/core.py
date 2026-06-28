@@ -1,4 +1,3 @@
-import random
 import signal
 from pathlib import Path
 from os import path, cpu_count
@@ -70,7 +69,6 @@ class RenderConfig:
     source_path:          Path
     target_path:          Path
     skip_glob:            str | None
-    random_seed:          int | None
     requested_jobs_count: int | None
 
     @cached_property
@@ -224,7 +222,7 @@ def _render_templates(
     if len(renderable_templates) <= 0:
         return _handle_no_templates_to_render(config.source_path, config.skip_glob)
     if len(renderable_templates) == 1:
-        return _render_templates_sequential(source_root, target_dir_path, renderable_templates, vars, render_handler, render_result_observer, config.random_seed, progress_listener)
+        return _render_templates_sequential(source_root, target_dir_path, renderable_templates, vars, render_handler, render_result_observer, progress_listener)
     return _render_templates_concurrent(config, source_root, target_dir_path, renderable_templates, vars, render_handler, render_result_observer, progress_listener)
 
 def _render_templates_sequential(
@@ -234,7 +232,6 @@ def _render_templates_sequential(
     vars:                   TemplateVariables,
     render_handler:         RenderHandler,
     render_result_observer: RenderResultObserver | None,
-    random_seed:            int | None,
     progress_listener:      ProgressListener
 ) -> RenderResult:
     result = RenderResult()
@@ -246,7 +243,7 @@ def _render_templates_sequential(
         try:
             template_result = _render_template(
                 jinja_env, vars, renderable_template.template_path, renderable_template.template_name,
-                target_dir_path, renderable_template.target_file_path, render_handler, random_seed
+                target_dir_path, renderable_template.target_file_path, render_handler
             )
         except KeyboardInterrupt:
             result.was_interrupted = True
@@ -296,7 +293,7 @@ def _render_templates_concurrent(
             def render_template_async(renderable_template: _RenderableTemplate) -> AsyncResult:
                 return process_pool.apply_async(
                     _render_template_job,
-                    (target_dir_path, renderable_template, render_handler, config.random_seed),
+                    (target_dir_path, renderable_template, render_handler),
                     callback=job_success_callback,
                     error_callback=cast(Callable[[BaseException], None], partial(job_error_callback, renderable_template))
                 )
@@ -352,7 +349,7 @@ def _init_render_template_process(source_root: Path, vars_transport: TemplateVar
     _jinja_env = _make_jinja_env(source_root)
     _vars      = vars_transport.retrieve_vars()
 
-def _render_template_job(target_dir_path: Path, renderable_template: _RenderableTemplate, render_handler: RenderHandler, random_seed: int | None) -> _RenderTemplateResult:
+def _render_template_job(target_dir_path: Path, renderable_template: _RenderableTemplate, render_handler: RenderHandler) -> _RenderTemplateResult:
     """This function is the entry point for individual template rendering jobs run in parallel"""
 
     assert isinstance(_jinja_env, Environment)
@@ -360,7 +357,7 @@ def _render_template_job(target_dir_path: Path, renderable_template: _Renderable
 
     return _render_template(
         _jinja_env, _vars, renderable_template.template_path, renderable_template.template_name,
-        target_dir_path, renderable_template.target_file_path, render_handler, random_seed
+        target_dir_path, renderable_template.target_file_path, render_handler
     )
 
 def _render_template(
@@ -370,14 +367,12 @@ def _render_template(
     template_name:    str,
     target_dir_path:  Path,
     target_file_path: Path,
-    render_handler:   RenderHandler,
-    random_seed:      int | None
+    render_handler:   RenderHandler
 ) -> _RenderTemplateResult:
     render_start_time_seconds = default_timer()
 
     inject_service_var(vars, _TEMPLATE_PATH_VAR, _replace_backslashes(template_path))
     try:
-        random.seed(random_seed)
         rendered_content      = _render_template_impl(jinja_env, template_name, vars)
         context               = RenderTemplateContext(template_path, target_dir_path, target_file_path, rendered_content)
         render_handler_result = render_handler(context)

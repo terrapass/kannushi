@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - The public `render_dir` function and `RenderDirResult` type (replaced by `render` and `RenderResult` respectively).
+- The `--seed` CLI argument and the `random_seed` field of `RenderConfig`. (In cases where templates involve RNG calls, seeding can be accomplished by means of `--vars-processor`.)
 
 ## [1.0.0-rc.3][1.0.0-rc.3] - 2026-06-24
 
