@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ## [Unreleased][unreleased] -->
 
-## [1.0.0-rc.4][1.0.0-rc.4] - 2026-06-28
+## [1.0.0][1.0.0] - 2026-06-28
 
 ### Added
 
 - Single-template mode: `SOURCE_PATH` and `TARGET_PATH` may now be regular files, rendering one template to one output file. The source file may have any name; in this mode `--skip` is still honored (the file is skipped if it matches). If `TARGET_PATH` already exists, its kind (file vs. directory) must match `SOURCE_PATH`'s.
 - Support for the `-e` (`--ext`) CLI argument, which sets the template file extension to look for when `SOURCE_PATH` is a directory (the argument is ignored otherwise). Defaults to `jinja`.
+- Support for the `--ignore-absent-vars-files` CLI argument. When given, a `--vars` glob that matches no files is tolerated (a warning is logged and rendering proceeds with no variables) instead of being treated as an error.
+- Support for the `-V` (`--version`) CLI argument, which prints the program name and version and exits.
 - `validate_render_paths` to the package API, to verify that `SOURCE_PATH` and `TARGET_PATH` are valid without invoking `render`.
 - 3 new exceptions associated with paths validation: `RenderPathError`, `InvalidSourcePathError` and `TargetPathKindMismatchError` (all in `kannushi.exceptions`).
 - `template_extension` field (defaults to `jinja`) in `RenderConfig`.
@@ -20,49 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The public `render_dir` function has been replaced by a unified `render`, which validates the source/target paths and then renders either a single file or a directory tree.
-- A `TARGET_PATH` that already exists with a kind not matching `SOURCE_PATH` (e.g. a file target for a directory source) is now reported with a dedicated error, generalizing the previous "target is not a directory" check.
+- The tool now exits with an error if `SOURCE_PATH` does not exist.
+- If `TARGET_PATH` already exists, its kind must match `SOURCE_PATH`'s (a file source requires a file target, a directory source a directory target); a mismatch is now reported with a dedicated error.
+- A warning is now logged if `TARGET_PATH` does not exist. (It will still get created in the absence of `--check`.)
+- A `--vars` glob that matches no files is now treated as an error, unless an explicit `--ignore-absent-vars-files` CLI argument is given.
+- A warning is now logged and the tool exits early when no (non-skipped) templates are selected for rendering.
+- Renamed `post_process_vars` to `pre_process_vars`, resolving the pre-/post-processing terminology ambiguity in favor of "pre-processing" across the codebase and CLI output (including `--help`).
 - If there is only a single template to render, it is now rendered directly without spawning parallel render workers.
+- The tool will no longer spawn more render worker processes than there are templates to render, regardless of `--jobs`.
+- Sped up render pool initialization for highly parallelized cases (high/default `--jobs` value on high CPU core count systems). On Linux the pre-3.14 default of the [`fork` start method](https://docs.python.org/3.14/library/multiprocessing.html#multiprocessing-start-methods) for `multiprocessing` is now forced in the CLI on Python 3.14+ (this does not affect **kannushi**'s public package API behavior); on other platforms (Windows, macOS) template variables are communicated to the render worker processes via shared memory instead of being pickled separately for each worker.
+- Verbose per-file render times are now printed in blue.
+
+### Fixed
+
+- Template variables whose name coincides with a `dict` method name (e.g. `items`, `keys`, `update`) no longer break rendering on Linux (Python 3.14+) and other platforms.
 
 ### Removed
 
 - The public `render_dir` function and `RenderDirResult` type (replaced by `render` and `RenderResult` respectively).
 - The `--seed` CLI argument and the `random_seed` field of `RenderConfig`. (In cases where templates involve RNG calls, seeding can be accomplished by means of `--vars-processor`.)
-
-## [1.0.0-rc.3][1.0.0-rc.3] - 2026-06-24
-
-### Added
-
-- Support for the `--ignore-absent-vars-files` CLI argument. When given, a `--vars` glob that matches no files is tolerated (a warning is logged and rendering proceeds with no variables) instead of being treated as an error.
-
-### Changed
-
-- Renamed `post_process_vars` to `pre_process_vars`.
-- Generally resolved vars pre-/post-processing terminology ambiguity in favor of "pre-processing" - across the codebase and CLI output, including `--help`.
-- A `--vars` glob that matches no files is now treated as an error, unless an explicit `--ignore-absent-vars-files` CLI argument is given.
-- The tool now exits with an error if `SOURCE_PATH` does not exist or is not a directory.
-- The tool now exits with an error if `TARGET_PATH` is a regular file.
-- A warning is now logged if `TARGET_PATH` does not exist. (It will still get created in the absence of `--check`.)
-- A warning is now logged and the tool exits early when `SOURCE_PATH` contains no (non-skipped) templates.
-- The tool will no longer spawn more render worker processes than there are templates to render, regardless of `--jobs`.
-- Verbose per-file render times are now printed in blue.
-
-## [1.0.0-rc.2][1.0.0-rc.2] - 2026-06-22
-
-### Added
-
-- Support for the `-V` (`--version`) CLI argument, which prints the program name and version and exits.
-
-## [1.0.0-rc.1][1.0.0-rc.1] - 2026-06-22
-
-### Changed
-
-- Sped up render pool initialization stage for highly parallelized cases (high/default `--jobs` value on high CPU core count systems).
-- On Linux the pre-3.14 default of [`fork` start method](https://docs.python.org/3.14/library/multiprocessing.html#multiprocessing-start-methods) for `multiprocessing` is now forced in CLI on Python 3.14+ (does not affect **kannushi**'s public package API behavior).
-- On other platforms (Windows, macOS) template variables are now communicated to the render worker processes via shared memory instead of being pickled separately for each worker, thus reducing render pool initialization overhead for high parallel job count cases.
-
-### Fixed
-
-- Template variables whose name coincides with a `dict` method name (e.g. `items`, `keys`, `update`) no longer break rendering on Linux (Python 3.14+) and other platforms.
 
 ## [0.8.0][0.8.0] - 2026-06-21
 
@@ -207,11 +185,8 @@ Initial public release of **kannushi** - a command line utility for batch render
 - [`{% do %}` expression statements](https://jinja.palletsprojects.com/en/stable/extensions/#expression-statement) are supported in templates by means of the standard `jinja2.ext.do` Jinja2 extension.
 - [`jinja2-error`](https://pypi.org/project/jinja2-error/) extension is integrated to allow for use of the `{% error %}` Jinja tag to raise errors from template code.
 
-[unreleased]: https://github.com/terrapass/kannushi/compare/v1.0.0-rc.4...HEAD
-[1.0.0-rc.4]: https://github.com/terrapass/kannushi/compare/v1.0.0-rc.3...v1.0.0-rc.4
-[1.0.0-rc.3]: https://github.com/terrapass/kannushi/compare/v1.0.0-rc.2...v1.0.0-rc.3
-[1.0.0-rc.2]: https://github.com/terrapass/kannushi/compare/v1.0.0-rc.1...v1.0.0-rc.2
-[1.0.0-rc.1]: https://github.com/terrapass/kannushi/compare/v0.8.0...v1.0.0-rc.1
+[unreleased]: https://github.com/terrapass/kannushi/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/terrapass/kannushi/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/terrapass/kannushi/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/terrapass/kannushi/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/terrapass/kannushi/compare/v0.5.0...v0.6.0
