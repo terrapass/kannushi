@@ -13,7 +13,7 @@ In a nutshell, it takes a directory containing `*.jinja` files and recursively r
 ```sh
 kannushi -j8 --vars "config/**/*.yml" src_templates/ src/
 ```
-This will render Jinja template files in 8 parallel jobs (`-j8`) from `src_templates/` into `src/`, based on data from YAML files inside `config/`.\
+This will render Jinja template files in up to 8 parallel jobs (`-j8`) from `src_templates/` into `src/`, based on data from YAML files inside `config/`.\
 Each rendered file will have the same name as its source template, minus the `.jinja` extension. It will also be placed at the same path relative to `src/` as its source template is relative to `src_templates/`. So, for example `src_templates/some/path/filename.ext.jinja` will be rendered into `src/some/path/filename.ext`.\
 Existing files in `src/` that reside at paths corresponding to templates will be overwritten. All other files in `src/` will be left untouched.
 
