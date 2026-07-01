@@ -111,7 +111,7 @@ It's also possible to use `--vars-processor` alone, without `--vars`, provided t
 ## Synopsis
 ```
 usage: kannushi [-h] [--skip SKIP_GLOB] [-e TEMPLATE_EXT] [--vars VARS_YAML_GLOB]
-                [--ignore-absent-vars-files]
+                [--ignore-absent-vars-files] [--vars-duplicates {reject,merge}]
                 [--vars-processor VARS_PROCESSOR_MODULE]
                 [--vars-processor-func VARS_PROCESSOR_FUNCTION]
                 [-j JOBS_COUNT] [--check] [--log LOG_YAML_PATH] [--diff DIFF_PATH]
@@ -138,6 +138,10 @@ options:
   --ignore-absent-vars-files
                         proceed with no variables instead of failing when
                         --vars matches no files
+  --vars-duplicates {reject,merge}
+                        whether to reject or merge top-level template variables
+                        duplicated across multiple files in VARS_YAML_GLOB
+                        (defaults to reject)
   --vars-processor VARS_PROCESSOR_MODULE
                         Python file/module to use for variables dictionary pre-processing
   --vars-processor-func VARS_PROCESSOR_FUNCTION

@@ -16,6 +16,7 @@ import yaml
 
 from .. import (
     TemplateVariables, RenderConfig, RenderResult, TargetFileStatus, DEFAULT_TEMPLATE_EXTENSION, load_vars_from_yaml_files,
+    VarsDuplicatesPolicy, DEFAULT_VARS_DUPLICATES_POLICY,
     pre_process_vars, render, validate_render_paths, composite_render_pipeline, writing_render_handler, make_diff_render_pipeline_step
 )
 from ..exceptions import (
@@ -39,6 +40,7 @@ Templates must use UTF-8 (with or without BOM), rendered files will reflect thei
 
 _EXT_ARG                      = '--ext'
 _IGNORE_ABSENT_VARS_FILES_ARG = '--ignore-absent-vars-files'
+_VARS_DUPLICATES_ARG          = '--vars-duplicates'
 _VARS_PROCESSOR_MODULE_ARG    = '--vars-processor'
 _VARS_PROCESSOR_FUNCTION_ARG  = '--vars-processor-func'
 
@@ -71,6 +73,10 @@ def _make_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         _IGNORE_ABSENT_VARS_FILES_ARG, action='store_true', dest='ignore_absent_vars_files',
         help='proceed with no variables instead of failing when --vars matches no files'
+    )
+    parser.add_argument(
+        _VARS_DUPLICATES_ARG, dest='vars_duplicates_policy_str', choices=[policy.value for policy in VarsDuplicatesPolicy], default=DEFAULT_VARS_DUPLICATES_POLICY.value,
+        help=f'whether to reject or merge top-level template variables duplicated across multiple files in VARS_YAML_GLOB (defaults to {DEFAULT_VARS_DUPLICATES_POLICY.value})'
     )
     parser.add_argument(
         _VARS_PROCESSOR_MODULE_ARG, dest='vars_processor_module_locator', metavar='VARS_PROCESSOR_MODULE', type=str, help='Python file/module to use for variables dictionary pre-processing'
@@ -422,7 +428,8 @@ def main():
 
     try:
         vars = load_vars_from_yaml_files(
-            args.vars_glob, config.effective_jobs_count, ignore_absent_files=args.ignore_absent_vars_files, progress_listener=stage_time_reporter
+            args.vars_glob, config.effective_jobs_count, ignore_absent_files=args.ignore_absent_vars_files,
+            duplicates_policy=VarsDuplicatesPolicy(args.vars_duplicates_policy_str), progress_listener=stage_time_reporter
         ) if args.vars_glob is not None else TemplateVariables()
     except KeyboardInterrupt:
         context.on_user_interruption()

@@ -4,6 +4,8 @@ __all__ = [
     "timing",
     "TemplateVariables",
     "load_vars_from_yaml_files",
+    "VarsDuplicatesPolicy",
+    "DEFAULT_VARS_DUPLICATES_POLICY",
     "pre_process_vars",
     "DEFAULT_TEMPLATE_EXTENSION",
     "RenderTemplateContext",
@@ -27,7 +29,7 @@ __all__ = [
 
 from . import exceptions, extensions, timing
 from ._vars import TemplateVariables
-from ._vars.loading import load_vars_from_yaml_files
+from ._vars.loading import load_vars_from_yaml_files, VarsDuplicatesPolicy, DEFAULT_VARS_DUPLICATES_POLICY
 from ._vars.pre_processing import pre_process_vars
 from ._rendering import (
     DEFAULT_TEMPLATE_EXTENSION,
