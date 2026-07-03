@@ -37,7 +37,7 @@ def load_vars_from_yaml_files(
     duplicates_policy:   VarsDuplicatesPolicy  = DEFAULT_VARS_DUPLICATES_POLICY,
     progress_listener:   ProgressListener      = NullProgressListener()
 ) -> TemplateVariables:
-    var_files_paths = glob.glob(vars_files_glob, recursive=True)
+    var_files_paths = [Path(var_file_path) for var_file_path in glob.glob(vars_files_glob, recursive=True)]
     var_files_count = len(var_files_paths)
 
     if var_files_count <= 0:
@@ -47,13 +47,16 @@ def load_vars_from_yaml_files(
         return TemplateVariables()
 
     adjusted_jobs_count = min(var_files_count, jobs_count)
-    print(f"Loading template variables from {len(var_files_paths)} files matching {vars_files_glob} in {adjusted_jobs_count} parallel jobs...")
+    print(f"Loading template variables from {var_files_count} file{'' if var_files_count == 1 else 's'} matching {vars_files_glob}{f' in {adjusted_jobs_count} parallel jobs' if adjusted_jobs_count > 1 else ''}...")
 
     yaml_loader_class  = _select_yaml_loader_class()
     progress_listener.on_stage_started(Stage.VARS_LOADING)
     try:
-        with Pool(adjusted_jobs_count, signal.signal, (signal.SIGINT, signal.SIG_IGN)) as process_pool:
-            vars_parts = process_pool.starmap(_load_dict_from_yaml_file, zip(var_files_paths, repeat(yaml_loader_class)))
+        if adjusted_jobs_count <= 1:
+            vars_parts = [_load_dict_from_yaml_file(var_file_path, yaml_loader_class) for var_file_path in var_files_paths]
+        else:
+            with Pool(adjusted_jobs_count, signal.signal, (signal.SIGINT, signal.SIG_IGN)) as process_pool:
+                vars_parts = process_pool.starmap(_load_dict_from_yaml_file, zip(var_files_paths, repeat(yaml_loader_class)))
 
         vars = TemplateVariables()
         for vars_part in vars_parts:

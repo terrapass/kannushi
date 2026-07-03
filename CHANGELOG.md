@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Changed
+
+- If template variables are to be loaded from only a single file matching `--vars`, or if `--jobs 1` is given (or only 1 logical CPU core is available) vars files are now read directly, without spawning parallel loader processes.
 
 ## [1.1.0][1.1.0] - 2026-07-03
 
