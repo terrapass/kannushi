@@ -228,7 +228,7 @@ def _render_templates(
 ) -> RenderResult:
     if len(renderable_templates) <= 0:
         return _handle_no_templates_to_render(config.source_path, config.skip_glob)
-    if len(renderable_templates) == 1:
+    if min(config.effective_jobs_count, len(renderable_templates)) <= 1:
         return _render_templates_sequential(source_root, target_dir_path, renderable_templates, vars, render_handler, render_result_observer, progress_listener)
     return _render_templates_concurrent(config, source_root, target_dir_path, renderable_templates, vars, render_handler, render_result_observer, progress_listener)
 
@@ -243,6 +243,8 @@ def _render_templates_sequential(
 ) -> RenderResult:
     result = RenderResult()
     result.selected_templates_count = len(renderable_templates)
+
+    print(f"Rendering {len(renderable_templates)} template{'' if len(renderable_templates) == 1 else 's'}...")
 
     jinja_env = _make_jinja_env(source_root)
     progress_listener.on_stage_started(Stage.JINJA_RENDER)
