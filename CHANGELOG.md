@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - If template variables are to be loaded from only a single file matching `--vars`, or if `--jobs 1` is given (or only 1 logical CPU core is available) vars files are now read directly, without spawning parallel loader processes.
 - If `--jobs 1` is given (or only 1 logical CPU core is available), templates are now rendered directly, without spawning parallel render processes — extending the single-template direct rendering introduced in 1.0.0.
+- Render error file list is no longer printed separately at the end in non-verbose mode. (Errors are already visible in non-verbose output of Jinja rendering stage.)
 
 ## [1.1.0][1.1.0] - 2026-07-03
 

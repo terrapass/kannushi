@@ -363,15 +363,16 @@ def _try_log_verification_result(verification_result: _VerificationResult | None
         verification_result.missing_file_paths
     )
 
-def _try_log_file_list(explanation: str, file_paths: list[Path]):
+def _try_log_file_list(explanation: str, file_paths: list[Path], non_verbose_paths_limit: int = _MAX_FILE_PATHS_LOGGED_NON_VERBOSE):
     file_paths_count = len(file_paths)
     if file_paths_count <= 0:
         return
-    print_error(f"error: {file_paths_count} file{'' if file_paths_count == 1 else 's'} {explanation}:")
-    for file_path in file_paths[:(file_paths_count if is_verbose() else _MAX_FILE_PATHS_LOGGED_NON_VERBOSE)]:
+    must_print_colon = is_verbose() or non_verbose_paths_limit > 0
+    print_error(f"error: {file_paths_count} file{'' if file_paths_count == 1 else 's'} {explanation}{':' if must_print_colon else ''}")
+    for file_path in file_paths[:(file_paths_count if is_verbose() else non_verbose_paths_limit)]:
         print_error(str(file_path))
-    if not is_verbose() and file_paths_count > _MAX_FILE_PATHS_LOGGED_NON_VERBOSE:
-        print_error(f"# ...and {file_paths_count - _MAX_FILE_PATHS_LOGGED_NON_VERBOSE} more; re-run with --verbose for the full list")
+    if not is_verbose() and non_verbose_paths_limit > 0 and file_paths_count > non_verbose_paths_limit:
+        print_error(f"# ...and {file_paths_count - non_verbose_paths_limit} more; re-run with --verbose for the full list")
     print_error("")
 
 #
@@ -475,7 +476,11 @@ def main():
         context.on_user_interruption(f"{render_result.skipped_count} template{'s' if render_result.skipped_count != 1 else ''} skipped")
     if render_result.errors_count > 0:
         assert len(render_result.errors_by_target_file_path) > 0
-        _try_log_file_list(f"failed to render from template{'' if len(render_result.errors_by_target_file_path) == 1 else 's'}", list(render_result.errors_by_target_file_path.keys()))
+        _try_log_file_list(
+            f"failed to render from template{'' if len(render_result.errors_by_target_file_path) == 1 else 's'}",
+            list(render_result.errors_by_target_file_path.keys()),
+            non_verbose_paths_limit=0
+        )
     elif not render_result.was_interrupted and render_result.selected_templates_count > 0:
         assert render_result.is_successful
         is_verification_failed = verification_result is not None and not verification_result.is_successful
