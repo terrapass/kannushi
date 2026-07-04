@@ -16,7 +16,10 @@ from ..exceptions import InvalidSourcePathError, TargetPathKindMismatchError
 from ..timing import Stage, ProgressListener, NullProgressListener
 from .._vars import TemplateVariables
 from .._vars.loading import inject_service_var
-from .._logging import print_verbose_success, print_warning, print_error
+from .._logging import (
+    print_verbose_success, print_warning, print_error,
+    is_status_line_active, try_activate_status_line, try_update_status_line, try_flush_status_line
+)
 from .ipc import TemplateVariablesTransport, make_template_variables_transport
 
 #
@@ -248,6 +251,7 @@ def _render_templates_sequential(
 
     jinja_env = _make_jinja_env(source_root)
     progress_listener.on_stage_started(Stage.JINJA_RENDER)
+    try_activate_status_line(_make_render_status_line_text(result))
     for renderable_template in renderable_templates:
         try:
             template_result = _render_template(
@@ -261,6 +265,7 @@ def _render_templates_sequential(
             _on_template_render_error(result, renderable_template.target_file_path, e)
         else:
             _on_template_render_success(result, template_result, render_result_observer)
+    try_flush_status_line()
     progress_listener.on_stage_ended(Stage.JINJA_RENDER, result.errors_count, result.was_interrupted)
 
     return result
@@ -312,6 +317,7 @@ def _render_templates_concurrent(
 
                 change_stage(Stage.JINJA_RENDER)
                 print(f'Rendering {len(renderable_templates)} templates in {actual_jobs_count} parallel jobs...')
+                try_activate_status_line(_make_render_status_line_text(result))
 
                 for async_result in async_results:
                     while not async_result.ready():
@@ -322,6 +328,7 @@ def _render_templates_concurrent(
                 result.was_interrupted = True
                 process_pool.terminate()
 
+    try_flush_status_line()
     change_stage(None, result.errors_count if current_stage == Stage.JINJA_RENDER else 0, result.was_interrupted)
 
     return result
@@ -330,17 +337,31 @@ def _handle_no_templates_to_render(source_path: Path, skip_glob: str | None) -> 
     print_warning(f"warning: No{' (non-skipped)' if skip_glob is not None else ''} templates to render in {source_path}", file=stdout)
     return RenderResult()
 
+def _make_render_status_line_text(result: RenderResult) -> str:
+    return (
+        f"{result.rendered_templates_count}/{result.selected_templates_count}"
+        f" template{'' if result.selected_templates_count == 1 else 's'} rendered"
+        + (f", {result.errors_count} failed" if result.errors_count > 0 else '')
+    )
+
+def _try_update_render_status_line(result: RenderResult):
+    if not is_status_line_active():
+        return
+    try_update_status_line(_make_render_status_line_text(result))
+
 def _on_template_render_success(result: RenderResult, template_result: _RenderTemplateResult, render_result_observer: RenderResultObserver | None):
     result.rendered_templates_count += 1
     print_verbose_success(f'[{template_result.render_time_seconds:4.2f}s] {template_result.target_file_path}')
     if render_result_observer is not None:
         render_result_observer(template_result.target_file_path, template_result.render_handler_result)
+    _try_update_render_status_line(result)
 
 def _on_template_render_error(result: RenderResult, target_file_path: Path, error: BaseException):
     assert target_file_path not in result.errors_by_target_file_path
     result.errors_by_target_file_path[target_file_path] = error
     print_error(f'[ERROR] {target_file_path}')
     print_error(f'\terror: {error}')
+    _try_update_render_status_line(result)
 
 def _make_jinja_env(source_root: Path) -> Environment:
     return Environment(

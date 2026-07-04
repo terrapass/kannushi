@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+### Added
+
+- An updating progress status line is now printed during Jinja rendering stage in the absence of `--verbose`, unless the terminal is non-interactive.
+
 ### Changed
 
 - If template variables are to be loaded from only a single file matching `--vars`, or if `--jobs 1` is given (or only 1 logical CPU core is available) vars files are now read directly, without spawning parallel loader processes.
