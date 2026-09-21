@@ -1,11 +1,28 @@
 import difflib
 from pathlib import Path
 from enum import Enum
-from typing import Iterable, Iterator
+from typing import Callable, Iterable, Iterator
+from collections import Counter
 from dataclasses import dataclass
 
 from ._rendering import RenderHandler, RenderTemplateContext
 from ._logging import print_warning
+
+#
+# Constants
+#
+
+# Upper bound on difflib's estimated line-matching work for a single file. Past it, lines repeated
+# too often are excluded from matching, since difflib is superlinear in this estimate and takes
+# hours on large, highly repetitive generated files.
+_DEFAULT_DIFF_MATCH_WORK_BUDGET = 5_000_000
+
+_DIFF_CONTEXT_LINES_COUNT = 3
+
+# difflib.SequenceMatcher's own autojunk heuristic, mirrored so the estimate above reflects
+# what difflib actually indexes.
+_DIFFLIB_AUTOJUNK_MIN_LINES_COUNT = 200
+_DIFFLIB_AUTOJUNK_RATIO_DIVISOR   = 100
 
 #
 # Types
@@ -72,7 +89,72 @@ def _make_unified_diff(current_content: str | None, rendered_content: str, targe
     to_lines   = rendered_content.splitlines(keepends=True)
     from_file  = '/dev/null' if current_content is None else f'a/{target_file_relative_path}'
     to_file    = f'b/{target_file_relative_path}'
-    return ''.join(_with_no_newline_markers(difflib.unified_diff(from_lines, to_lines, from_file, to_file, lineterm='\n')))
+    is_junk    = _try_make_repeated_line_junk_predicate(from_lines, to_lines)
+    return ''.join(_with_no_newline_markers(_unified_diff(from_lines, to_lines, from_file, to_file, is_junk)))
+
+def _try_make_repeated_line_junk_predicate(from_lines: list[str], to_lines: list[str]) -> Callable[[str], bool] | None:
+    to_line_counts = Counter(to_lines)
+    threshold      = _try_select_repeated_line_threshold(Counter(from_lines), to_line_counts, len(to_lines))
+    if threshold is None:
+        return None
+    return lambda line: to_line_counts[line] > threshold
+
+def _try_select_repeated_line_threshold(from_line_counts: Counter[str], to_line_counts: Counter[str], to_lines_count: int) -> int | None:
+    """Returns the largest number of repetitions to still match on, or None if no line needs excluding."""
+    autojunk_cutoff = to_lines_count // _DIFFLIB_AUTOJUNK_RATIO_DIVISOR if to_lines_count >= _DIFFLIB_AUTOJUNK_MIN_LINES_COUNT else to_lines_count
+    match_work_by_repeats: dict[int, int] = {}
+    for line, to_count in to_line_counts.items():
+        if to_count > autojunk_cutoff:
+            continue
+        if (match_work := from_line_counts[line] * to_count) > 0:
+            match_work_by_repeats[to_count] = match_work_by_repeats.get(to_count, 0) + match_work
+
+    if sum(match_work_by_repeats.values()) <= _DEFAULT_DIFF_MATCH_WORK_BUDGET:
+        return None
+
+    selected_threshold   = 0
+    selected_match_work  = 0
+    for repeats in sorted(match_work_by_repeats):
+        if selected_match_work + match_work_by_repeats[repeats] > _DEFAULT_DIFF_MATCH_WORK_BUDGET:
+            break
+        selected_threshold   = repeats
+        selected_match_work += match_work_by_repeats[repeats]
+
+    # Never exclude unique lines: that would leave difflib nothing to anchor on.
+    return max(selected_threshold, 1)
+
+def _unified_diff(from_lines: list[str], to_lines: list[str], from_file: str, to_file: str, is_junk: Callable[[str], bool] | None) -> Iterator[str]:
+    """Mirrors difflib.unified_diff, which hardcodes SequenceMatcher(None, ...) and exposes no isjunk hook."""
+    matcher = difflib.SequenceMatcher(is_junk, from_lines, to_lines)
+    started = False
+    for group in matcher.get_grouped_opcodes(_DIFF_CONTEXT_LINES_COUNT):
+        if not started:
+            started = True
+            yield f'--- {from_file}\n'
+            yield f'+++ {to_file}\n'
+
+        first, last = group[0], group[-1]
+        from_range  = _format_unified_diff_range(first[1], last[2])
+        to_range    = _format_unified_diff_range(first[3], last[4])
+        yield f'@@ -{from_range} +{to_range} @@\n'
+
+        for tag, from_start, from_stop, to_start, to_stop in group:
+            if tag == 'equal':
+                yield from (' ' + line for line in from_lines[from_start:from_stop])
+                continue
+            if tag in ('replace', 'delete'):
+                yield from ('-' + line for line in from_lines[from_start:from_stop])
+            if tag in ('replace', 'insert'):
+                yield from ('+' + line for line in to_lines[to_start:to_stop])
+
+def _format_unified_diff_range(start: int, stop: int) -> str:
+    beginning = start + 1 # lines are numbered from one
+    length    = stop - start
+    if length == 1:
+        return str(beginning)
+    if not length:
+        beginning -= 1 # empty ranges begin at the line just before the range
+    return f'{beginning},{length}'
 
 def _with_no_newline_markers(diff_lines: Iterable[str]) -> Iterator[str]:
     for diff_line in diff_lines:
