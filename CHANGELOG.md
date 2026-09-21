@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+## [1.2.1][1.2.1] - 2026-09-22
+
 ### Changed
 
 - Unified diff generation now limits the amount of line matching it performs on very large, highly repetitive target files, to address corner cases where it would take anomalously long to compute the diff. Diff hunk boundaries may have shifted for such files, compared to the previous **kannushi** version.
@@ -208,7 +210,8 @@ Initial public release of **kannushi** - a command line utility for batch render
 - [`{% do %}` expression statements](https://jinja.palletsprojects.com/en/stable/extensions/#expression-statement) are supported in templates by means of the standard `jinja2.ext.do` Jinja2 extension.
 - [`jinja2-error`](https://pypi.org/project/jinja2-error/) extension is integrated to allow for use of the `{% error %}` Jinja tag to raise errors from template code.
 
-[unreleased]: https://github.com/terrapass/kannushi/compare/v1.2.0...HEAD
+[unreleased]: https://github.com/terrapass/kannushi/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/terrapass/kannushi/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/terrapass/kannushi/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/terrapass/kannushi/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/terrapass/kannushi/compare/v0.8.0...v1.0.0
