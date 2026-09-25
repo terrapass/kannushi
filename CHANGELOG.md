@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][unreleased]
 
+### Changed
+
+- If `git` executable is available in `PATH`, `--diff` now computes the unified diff via a single `git diff --no-index` run, which is much faster on large files. Without `git` (or if a temporary directory for diffing can't be created), a warning is printed and the previous (slower) difflib-based implementation is used instead.
+
 ## [1.2.1][1.2.1] - 2026-09-22
 
 ### Changed

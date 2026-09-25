@@ -69,7 +69,8 @@ kannushi -j8 --check --log report.yml --diff changes.patch --vars "config/**/*.y
 
 `--log` will write a YAML log file to the given path at the end of the tool's run. It captures any errors from the variable loading and processing steps, a summary of the render (including per-template render errors, if any), and — in the presence of `--check` — the verification results, i.e. which target files were found to be modified or missing.
 
-`--diff` stores a unified diff between the current versions of target files as they exist(ed) on disk prior to the run and their newly rendered content.
+`--diff` stores a unified diff between the current versions of target files as they exist(ed) on disk prior to the run and their newly rendered content.\
+If `git` is available in `PATH`, **kannushi** uses it to compute the diff, which is considerably faster for large files. Otherwise it falls back to a slower `difflib`-based implementation.
 
 ### Input Data Pre-Processing
 

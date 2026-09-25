@@ -490,8 +490,10 @@ def main():
         )
 
     _try_log_verification_result(verification_result, render_result)
-    context.finish_with_results(
-        render_result,
-        verification_result,
-        diff_result_observer.unified_diff if diff_result_observer is not None else None
-    )
+
+    try:
+        unified_diff = diff_result_observer.unified_diff if diff_result_observer is not None else None
+    except KeyboardInterrupt:
+        context.on_user_interruption("unified diff not computed")
+
+    context.finish_with_results(render_result, verification_result, unified_diff)
