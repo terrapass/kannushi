@@ -1,6 +1,6 @@
 [project]
 name = "kannushi"
-version = "1.2.1"
+version = "1.3.0rc1"
 description = "A command line tool for batch rendering of Jinja templates"
 readme = "README.md"
 authors = [
