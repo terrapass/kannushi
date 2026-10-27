@@ -37,7 +37,7 @@ def load_vars_from_yaml_files(
     duplicates_policy:   VarsDuplicatesPolicy  = DEFAULT_VARS_DUPLICATES_POLICY,
     progress_listener:   ProgressListener      = NullProgressListener()
 ) -> TemplateVariables:
-    var_files_paths = sorted((Path(var_file_path) for var_file_path in glob.glob(vars_files_glob, recursive=True)), key=lambda path: path.parts)
+    var_files_paths = [Path(var_file_path) for var_file_path in sorted(glob.glob(vars_files_glob, recursive=True), key=lambda path: path.replace('\\', '/'))]
     var_files_count = len(var_files_paths)
 
     if var_files_count <= 0:

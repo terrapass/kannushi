@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- ## [Unreleased][unreleased] -->
+## [Unreleased][unreleased]
+
+### Changed
+
+- Files matching `--vars` are now sorted by their full path as a plain string (with `\` treated as `/`), rather than component by component. This only changes the relative order of a directory's contents and sibling paths that start with the directory's name followed by a character that sorts before `/` (e.g. `config.yml` now precedes `config/*.yml`).
 
 ## [1.4.0][1.4.0] - 2026-10-27
 
