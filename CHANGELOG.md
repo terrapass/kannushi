@@ -7,17 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ## [Unreleased][unreleased] -->
 
-## [1.4.1-rc.2][1.4.1-rc.2] - 2026-10-28
-
-### Fixed
-
-- Parallel loading of `--vars` files is no longer slowed down by the sorting of their paths introduced in 1.4.0.
-
-## [1.4.1-rc.1][1.4.1-rc.1] - 2026-10-27
+## [1.4.1][1.4.1] - 2026-10-28
 
 ### Changed
 
 - Files matching `--vars` are now sorted by their full path as a plain string (with `\` treated as `/`), rather than component by component. This only changes the relative order of a directory's contents and sibling paths that start with the directory's name followed by a character that sorts before `/` (e.g. `config.yml` now precedes `config/*.yml`).
+
+### Fixed
+
+- Parallel loading of `--vars` files is no longer slowed down by the sorting of their paths introduced in 1.4.0.
 
 ## [1.4.0][1.4.0] - 2026-10-27
 
@@ -234,9 +232,8 @@ Initial public release of **kannushi** - a command line utility for batch render
 - [`{% do %}` expression statements](https://jinja.palletsprojects.com/en/stable/extensions/#expression-statement) are supported in templates by means of the standard `jinja2.ext.do` Jinja2 extension.
 - [`jinja2-error`](https://pypi.org/project/jinja2-error/) extension is integrated to allow for use of the `{% error %}` Jinja tag to raise errors from template code.
 
-[unreleased]: https://github.com/terrapass/kannushi/compare/v1.4.1-rc.2...HEAD
-[1.4.1-rc.2]: https://github.com/terrapass/kannushi/compare/v1.4.1-rc.1...v1.4.1-rc.2
-[1.4.1-rc.1]: https://github.com/terrapass/kannushi/compare/v1.4.0...v1.4.1-rc.1
+[unreleased]: https://github.com/terrapass/kannushi/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/terrapass/kannushi/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/terrapass/kannushi/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/terrapass/kannushi/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/terrapass/kannushi/compare/v1.2.0...v1.2.1
