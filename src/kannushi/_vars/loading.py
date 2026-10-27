@@ -56,7 +56,7 @@ def load_vars_from_yaml_files(
             vars_parts = [_load_dict_from_yaml_file(var_file_path, yaml_loader_class) for var_file_path in var_files_paths]
         else:
             with Pool(adjusted_jobs_count, signal.signal, (signal.SIGINT, signal.SIG_IGN)) as process_pool:
-                vars_parts = process_pool.starmap(_load_dict_from_yaml_file, zip(var_files_paths, repeat(yaml_loader_class)))
+                vars_parts = process_pool.starmap(_load_dict_from_yaml_file, zip(var_files_paths, repeat(yaml_loader_class)), chunksize=1)
 
         vars = TemplateVariables()
         for vars_part in vars_parts:
